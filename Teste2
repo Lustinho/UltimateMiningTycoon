@@ -24,17 +24,6 @@ local Settings = {
     ShowDistance = false,
 }
 
-local Tool = nil
-
-local function GetTool()
-    for _, v in pairs(character:GetChildren()) do
-        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
-            return v
-        end
-    end
-    return nil
-end
-
 -- Farming Group
 local FarmGroup = MainTab:AddLeftGroupbox("Farming")
 
