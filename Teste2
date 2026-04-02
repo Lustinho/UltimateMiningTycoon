@@ -11,18 +11,45 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
--- ==================== CARREGAR LIBRARIES ====================
-
--- ==================== CONFIGURAÇÕES SIMPLES ====================
+-- ==================== 2. VARIÁVEIS E CONFIGURAÇÕES ====================
 local Settings = {
-    AutoMine = false,
-    AutoSell = false,
-    MiningRange = 120,
-    OreHitbox = false,
-    HitboxSize = 8,
-    ShowNames = false,
-    ShowDistance = false,
+    Farming = {AutoSell = false, AutoMine = false, AutoMineRange = 150, OreHitboxes = false, OreHitboxesSize = 8, OreIgnoreList = {}},
+    Player = {Walkspeed = 16},
+    Visuals = {OresEnabled = false, OreNames = false, OreDistances = false, OreIgnoreList = {}},
 }
+
+local Tool = nil
+local FirstRun = true
+local Selling = false
+local OldPlayerPosition = Vector3.new(0,0,0)
+
+local Plot = Workspace.Plots[player:GetAttribute("PlotId")]
+local PlayersUnloader = Workspace.Placeables[player:GetAttribute("PlotId")].UnloaderSystem
+local PlayersBackpack = character:WaitForChild("OrePackCargo", 5)
+
+local OreList = {"Tin","Iron","Lead","Cobalt","Silver","Aluminium","Uranium","Vanadium","Titanium","Gold","Tungsten","Plutonium","Palladium","Iridium","Adamantium","Thorium","Mithril","Rhodium","Unobtainium","Topaz","Emerald","Ruby","Sapphire","Diamond","Poudretteite","Zultanite","Grandidierite","Musgravite","Painite"}
+
+-- ==================== 3. FUNÇÃO GETTOOL (interage com AutoMine) ====================
+local function GetTool()
+    for _, v in pairs(character:GetChildren()) do
+        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
+            return v
+        end
+    end
+    return nil
+end
+
+-- ==================== 4. INTERFACE UI (simples e mobile) ====================
+local Window = Library:CreateWindow({
+    Title = "UMT - Completo Mobile",
+    Center = false,
+    Size = UDim2.new(0, 340, 0, 450)
+})
+Window:SetPosition(UDim2.new(1, -360, 1, -480))
+
+local MainTab = Window:AddTab("Main")
+local VisualTab = Window:AddTab("Visual")
+local SettingsTab = Window:AddTab("Settings"
 
 -- Cria a ScreenGui
 local screenGui = Instance.new("ScreenGui")
