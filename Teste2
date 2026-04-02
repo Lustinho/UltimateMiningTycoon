@@ -11,6 +11,11 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
+-- EspLibrary (sistema de ESP completo)
+local EspLibrary, EspLibraryFunctions = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/2bcff189f55663147f8d63cb5b2012d9/raw/c15541927610e44cfc31d640a1ddce50cda9e680/EspLibrary.lua"))()
+
+print("✅ Libraries carregadas (UI + ESP)")
+
 -- ==================== 2. VARIÁVEIS E CONFIGURAÇÕES ====================
 local Settings = {
     Farming = {AutoSell = false, AutoMine = false, AutoMineRange = 150, OreHitboxes = false, OreHitboxesSize = 8, OreIgnoreList = {}},
