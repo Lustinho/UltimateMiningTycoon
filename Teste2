@@ -24,28 +24,6 @@ local Settings = {
     ShowDistance = false,
 }
 
--- Farming Group
-local FarmGroup = MainTab:AddLeftGroupbox("Farming")
-
-FarmGroup:AddToggle("AutoMine", {Text = "Auto Mine", Default = false})
-    :OnChanged(function(v) Settings.Farming.AutoMine = v end)
-
-FarmGroup:AddToggle("AutoSell", {Text = "Auto Sell", Default = false})
-    :OnChanged(function(v) Settings.Farming.AutoSell = v end)
-
-FarmGroup:AddSlider("MiningRange", {Text = "Mining Range", Default = 150, Min = 50, Max = 400})
-    :OnChanged(function(v) Settings.Farming.AutoMineRange = v end)
-
-FarmGroup:AddToggle("OreHitbox", {Text = "Ore Hitbox", Default = false})
-    :OnChanged(function(v)
-        Settings.Farming.OreHitboxes = v
-        for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
-            if ore:IsA("MeshPart") then
-                ore.Size = v and Vector3.new(Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize) or Vector3.new(4.4,4.4,4.4)
-            end
-        end
-    end)
-
 -- Cria a ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MobileToggleButton"
