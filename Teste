@@ -1,22 +1,26 @@
+-- =============================================
+-- Botão Pequeno Arrastrável ON/OFF (Mobile Friendly)
+-- =============================================
+
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local camera = Workspace.CurrentCamera
 
--- ==================== BOTÃO CIRCULAR ARRASTÁVEL ====================
+-- Cria a ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "EspAutoGui"
+screenGui.Name = "MobileToggleButton"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- Cria o botão circular pequeno
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 85, 0, 85)           -- tamanho do círculo
-button.Position = UDim2.new(1, -120, 1, -120)   -- canto inferior direito
-button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
-button.Text = "On\nOFF"
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Name = "ToggleButton"
+button.Size = UDim2.new(0, 65, 0, 65)           -- tamanho pequeno
+button.Position = UDim2.new(1, -85, 0, 20)      -- canto superior direito (pode mudar)
+button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)  -- começa vermelho (OFF)
+button.Text = "OFF"
+button.TextColor3 = Color3.new(1, 1, 1)
 button.TextScaled = true
 button.Font = Enum.Font.GothamBold
 button.BorderSizePixel = 0
@@ -24,19 +28,42 @@ button.Parent = screenGui
 
 -- Deixa o botão redondo
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(1, 0)  -- 100% arredondado = círculo
+corner.CornerRadius = UDim.new(1, 0)   -- 100% arredondado = círculo
 corner.Parent = button
 
--- Sombra suave
+-- Borda branca para ficar bonito
 local stroke = Instance.new("UIStroke")
 stroke.Thickness = 3
-stroke.Color = Color3.fromRGB(255, 255, 255)
-stroke.Transparency = 0.6
+stroke.Color = Color3.new(1, 1, 1)
+stroke.Transparency = 0.4
 stroke.Parent = button
 
--- Variáveis de arrastar
+-- Variáveis de controle
+local isOn = false
+
+-- Função que muda o estado do botão
+local function toggleButton()
+    isOn = not isOn
+    
+    if isOn then
+        button.BackgroundColor3 = Color3.fromRGB(0, 180, 0)   -- Verde
+        button.Text = "ON"
+        print("✅ Botão ativado (ON)")
+        -- Aqui você pode colocar o que quiser que aconteça quando ligar
+        -- Exemplo: EspLibrary.ItemNames.Enabled = true
+    else
+        button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)   -- Vermelho
+        button.Text = "OFF"
+        print("⛔ Botão desativado (OFF)")
+        -- Exemplo: EspLibrary.ItemNames.Enabled = false
+    end
+end
+
+-- Clique no botão
+button.MouseButton1Click:Connect(toggleButton)
+
+-- ==================== SISTEMA DE ARRASTAR COM DEDO ====================
 local dragging = false
-local dragInput
 local dragStart
 local startPos
 
@@ -45,24 +72,28 @@ button.InputBegan:Connect(function(input)
         dragging = true
         dragStart = input.Position
         startPos = button.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-button.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
-        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        button.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
     end
 end)
+
+button.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- Mensagem inicial
+print("🟢 Botão pequeno arrastável criado com sucesso!")
+print("   • Toque para ligar/desligar (verde = ON | vermelho = OFF)")
+print("   • Segure e arraste para mover o botão")
