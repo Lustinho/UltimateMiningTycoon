@@ -1,6 +1,6 @@
 -- =============================================
--- UMT - Interface Simples Mobile (100% Sem Library Externa)
--- Botão circular arrastável + Auto Mine + ESP Integrado
+-- UMT - Botão Único para Auto Mine + ESP
+-- Botão circular arrastável (ON/OFF)
 -- =============================================
 
 local Players = game:GetService("Players")
@@ -14,15 +14,12 @@ local character = player.Character or player.CharacterAdded:Wait()
 
 -- ==================== CONFIGURAÇÕES ====================
 local Settings = {
-    AutoMine = false,
-    MiningRange = 150,
-    OreHitbox = false,
-    HitboxSize = 8,
+    MiningRange = 150,     -- Raio do Auto Mine
 }
 
 local Tool = nil
 local isOn = false
-local highlights = {}  -- Armazena os ESP dos ores
+local highlights = {}   -- Para armazenar o ESP
 
 local function GetTool()
     for _, v in pairs(character:GetChildren()) do
@@ -39,8 +36,8 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 75, 0, 75)
-button.Position = UDim2.new(1, -95, 1, -95)
+button.Size = UDim2.new(0, 72, 0, 72)
+button.Position = UDim2.new(1, -90, 1, -100)
 button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
 button.Text = "OFF"
 button.TextColor3 = Color3.new(1, 1, 1)
@@ -54,23 +51,24 @@ corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = button
 
 local stroke = Instance.new("UIStroke")
-stroke.Thickness = 4
+stroke.Thickness = 3.5
 stroke.Color = Color3.new(1, 1, 1)
 stroke.Parent = button
 
--- ==================== TOGGLE ON/OFF ====================
+-- ==================== FUNÇÃO DE TOGGLE ====================
 local function toggle()
     isOn = not isOn
+    
     if isOn then
         button.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
         button.Text = "ON"
-        print("✅ ESP + Auto Mine LIGADO")
+        print("✅ Auto Mine + ESP LIGADO")
     else
         button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
         button.Text = "OFF"
-        print("⛔ ESP + Auto Mine DESLIGADO")
+        print("⛔ Auto Mine + ESP DESLIGADO")
         
-        -- Remove todos os highlights quando desliga
+        -- Limpa todos os ESP quando desliga
         for _, hl in pairs(highlights) do
             hl:Destroy()
         end
@@ -80,7 +78,7 @@ end
 
 button.MouseButton1Click:Connect(toggle)
 
--- Arrastar o botão
+-- Arrastar o botão (perfeito para celular)
 local dragging = false
 local dragStart, startPos
 
@@ -105,23 +103,23 @@ button.InputEnded:Connect(function(input)
     end
 end)
 
--- ==================== ESP SIMPLES (INTEGRADO) ====================
+-- ==================== ESP (Highlight) ====================
 local function createESP(ore)
     if highlights[ore] then return end
     
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = ore
-    highlight.FillColor = Color3.fromRGB(0, 255, 100)
-    highlight.FillTransparency = 0.75   -- 25% de opacidade
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.OutlineTransparency = 0.3
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = ore
+    local hl = Instance.new("Highlight")
+    hl.Adornee = ore
+    hl.FillColor = Color3.fromRGB(0, 255, 100)
+    hl.FillTransparency = 0.78
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.OutlineTransparency = 0.4
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = ore
     
-    highlights[ore] = highlight
+    highlights[ore] = hl
 end
 
--- ==================== LOOP PRINCIPAL ====================
+-- ==================== LOOP PRINCIPAL (Auto Mine + ESP) ====================
 RunService.Heartbeat:Connect(function()
     if not isOn then return end
     
@@ -137,11 +135,11 @@ RunService.Heartbeat:Connect(function()
             local dist = (ore:GetPivot().Position - rootPos).Magnitude
             
             if dist <= Settings.MiningRange and dist > 8 then
-                -- ESP
+                -- Ativa ESP
                 createESP(ore)
                 
                 -- Auto Mine
-                local args = {1, ore:GetPivot().Position - Vector3.new(4,4,4)}
+                local args = {1, ore:GetPivot().Position - Vector3.new(4, 4, 4)}
                 pcall(function()
                     ReplicatedStorage.MadCommEvents[Tool:GetAttribute("MadCommId")].Activate:FireServer(unpack(args))
                 end)
@@ -150,14 +148,8 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Hitbox (opcional)
-Workspace.SpawnedBlocks.ChildAdded:Connect(function(ore)
-    if Settings.OreHitbox and ore:IsA("MeshPart") then
-        ore.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
-    end
-end)
-
-print("✅ SCRIPT CARREGADO COM SUCESSO!")
-print("   • Toque no botão para ligar/desligar")
-print("   • Segure e arraste o botão para mover")
-print("   • Quando estiver ON: Auto Mine + ESP ativados")
+-- ==================== MENSAGEM FINAL ====================
+print("✅ Botão único carregado com sucesso!")
+print("   Toque no botão → Verde = ON (Auto Mine + ESP)")
+print("   Toque novamente → Vermelho = OFF")
+print("   Segure e arraste o botão para qualquer lugar da tela")
