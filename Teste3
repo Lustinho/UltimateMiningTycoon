@@ -1,155 +1,320 @@
--- =============================================
--- UMT - Botão Único para Auto Mine + ESP
--- Botão circular arrastável (ON/OFF)
--- =============================================
+-- ============================================
+-- ULTIMATE MINING TYCOON - ESP & AUTO MINE
+-- Script para Roblox em Executor
+-- ============================================
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
--- ==================== CONFIGURAÇÕES ====================
-local Settings = {
-    MiningRange = 150,     -- Raio do Auto Mine
-}
+-- ============================================
+-- VARIÁVEIS DE CONFIGURAÇÃO
+-- ============================================
 
-local Tool = nil
-local isOn = false
-local highlights = {}   -- Para armazenar o ESP
+local espEnabled = false
+local autoMineEnabled = false
+local detectedOres = {}
+local oreHighlights = {}
+local currentOreTarget = nil
+local AUTO_MINE_RANGE = 100
+local ESP_UPDATE_SPEED = 0.5
+local lastESPUpdate = 0
 
-local function GetTool()
-    for _, v in pairs(character:GetChildren()) do
-        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
-            return v
-        end
-    end
-    return nil
-end
+-- ============================================
+-- CRIAR INTERFACE GUI PARA CELULAR
+-- ============================================
 
--- ==================== BOTÃO CIRCULAR ARRASTÁVEL ====================
-local screenGui = Instance.new("ScreenGui")
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 72, 0, 72)
-button.Position = UDim2.new(1, -90, 1, -100)
-button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
-button.Text = "OFF"
-button.TextColor3 = Color3.new(1, 1, 1)
-button.TextScaled = true
-button.Font = Enum.Font.GothamBold
-button.BorderSizePixel = 0
-button.Parent = screenGui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(1, 0)
-corner.Parent = button
-
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 3.5
-stroke.Color = Color3.new(1, 1, 1)
-stroke.Parent = button
-
--- ==================== FUNÇÃO DE TOGGLE ====================
-local function toggle()
-    isOn = not isOn
+local function createMobileUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "MiningTycoonUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndex = 100
     
-    if isOn then
-        button.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-        button.Text = "ON"
-        print("✅ Auto Mine + ESP LIGADO")
+    -- Detectar se é mobile
+    local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+    
+    if isMobile then
+        screenGui.Size = UDim2.new(0, 120, 0, 110)
+        screenGui.Position = UDim2.new(0.02, 0, 0.5, -55)
     else
-        button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
-        button.Text = "OFF"
-        print("⛔ Auto Mine + ESP DESLIGADO")
+        screenGui.Size = UDim2.new(0, 150, 0, 140)
+        screenGui.Position = UDim2.new(0.02, 0, 0.5, -70)
+    end
+    
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    
+    -- ============================================
+    -- BOTÃO ESP
+    -- ============================================
+    
+    local espButton = Instance.new("TextButton")
+    espButton.Name = "ESPButton"
+    espButton.Size = UDim2.new(1, -4, 0, 45)
+    espButton.Position = UDim2.new(0, 2, 0, 2)
+    espButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    espButton.TextSize = 14
+    espButton.Font = Enum.Font.GothamBold
+    espButton.Text = "ESP: OFF"
+    espButton.BorderSizePixel = 0
+    espButton.Parent = screenGui
+    
+    -- Efeito de arredondamento
+    local espCorner = Instance.new("UICorner")
+    espCorner.CornerRadius = UDim.new(0, 5)
+    espCorner.Parent = espButton
+    
+    -- ============================================
+    -- BOTÃO AUTO MINE
+    -- ============================================
+    
+    local autoMineButton = Instance.new("TextButton")
+    autoMineButton.Name = "AutoMineButton"
+    autoMineButton.Size = UDim2.new(1, -4, 0, 45)
+    autoMineButton.Position = UDim2.new(0, 2, 0, 52)
+    autoMineButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    autoMineButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    autoMineButton.TextSize = 14
+    autoMineButton.Font = Enum.Font.GothamBold
+    autoMineButton.Text = "AUTO MINE: OFF"
+    autoMineButton.BorderSizePixel = 0
+    autoMineButton.Parent = screenGui
+    
+    -- Efeito de arredondamento
+    local autoMineCorner = Instance.new("UICorner")
+    autoMineCorner.CornerRadius = UDim.new(0, 5)
+    autoMineCorner.Parent = autoMineButton
+    
+    -- ============================================
+    -- EVENTOS DOS BOTÕES
+    -- ============================================
+    
+    espButton.MouseButton1Click:Connect(function()
+        espEnabled = not espEnabled
+        espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+        espButton.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
         
-        -- Limpa todos os ESP quando desliga
-        for _, hl in pairs(highlights) do
-            hl:Destroy()
+        if not espEnabled then
+            -- Limpar highlights quando desativar
+            for _, highlight in pairs(oreHighlights) do
+                if highlight and highlight.Parent then
+                    highlight:Destroy()
+                end
+            end
+            oreHighlights = {}
         end
-        highlights = {}
-    end
+    end)
+    
+    autoMineButton.MouseButton1Click:Connect(function()
+        autoMineEnabled = not autoMineEnabled
+        autoMineButton.Text = autoMineEnabled and "AUTO MINE: ON" or "AUTO MINE: OFF"
+        autoMineButton.BackgroundColor3 = autoMineEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(50, 50, 50)
+        
+        if not autoMineEnabled then
+            currentOreTarget = nil
+        end
+    end)
+    
+    return screenGui, espButton, autoMineButton
 end
 
-button.MouseButton1Click:Connect(toggle)
+-- ============================================
+-- FUNÇÃO: DETECTAR MINÉRIOS
+-- ============================================
 
--- Arrastar o botão (perfeito para celular)
-local dragging = false
-local dragStart, startPos
-
-button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = button.Position
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-button.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- ==================== ESP (Highlight) ====================
-local function createESP(ore)
-    if highlights[ore] then return end
+local function findOresInWorkspace()
+    local ores = {}
     
-    local hl = Instance.new("Highlight")
-    hl.Adornee = ore
-    hl.FillColor = Color3.fromRGB(0, 255, 100)
-    hl.FillTransparency = 0.78
-    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-    hl.OutlineTransparency = 0.4
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = ore
-    
-    highlights[ore] = hl
-end
-
--- ==================== LOOP PRINCIPAL (Auto Mine + ESP) ====================
-RunService.Heartbeat:Connect(function()
-    if not isOn then return end
-    
-    Tool = GetTool()
-    character = player.Character
-    
-    if not character or not character:FindFirstChild("HumanoidRootPart") or not Tool then return end
-    
-    local rootPos = character.HumanoidRootPart.Position
-    
-    for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
-        if ore:IsA("MeshPart") and ore:GetAttribute("MineId") then
-            local dist = (ore:GetPivot().Position - rootPos).Magnitude
+    -- Procurar minérios na workspace
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("BasePart") then
+            local name = obj.Name:lower()
             
-            if dist <= Settings.MiningRange and dist > 8 then
-                -- Ativa ESP
-                createESP(ore)
+            -- Verificar se é um minério (adapte conforme os nomes do jogo)
+            if name:find("ore") or name:find("mineral") or name:find("mine") or 
+               name:find("rock") or name:find("pedra") or name:find("minério") then
                 
-                -- Auto Mine
-                local args = {1, ore:GetPivot().Position - Vector3.new(4, 4, 4)}
-                pcall(function()
-                    ReplicatedStorage.MadCommEvents[Tool:GetAttribute("MadCommId")].Activate:FireServer(unpack(args))
-                end)
+                if obj:IsA("BasePart") then
+                    table.insert(ores, obj)
+                elseif obj:IsA("Model") and obj:FindFirstChild("PrimaryPart") then
+                    table.insert(ores, obj.PrimaryPart)
+                end
+            end
+        end
+    end
+    
+    return ores
+end
+
+-- ============================================
+-- FUNÇÃO: CRIAR HIGHLIGHT (ESP)
+-- ============================================
+
+local function createHighlight(part)
+    if not part or not part.Parent then return end
+    
+    -- Verificar se já tem highlight
+    if oreHighlights[part] then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+    highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
+    highlight.OutlineTransparency = 0.2
+    highlight.Parent = part
+    
+    oreHighlights[part] = highlight
+end
+
+-- ============================================
+-- FUNÇÃO: REMOVER HIGHLIGHT
+-- ============================================
+
+local function removeHighlight(part)
+    if oreHighlights[part] then
+        oreHighlights[part]:Destroy()
+        oreHighlights[part] = nil
+    end
+end
+
+-- ============================================
+-- FUNÇÃO: CALCULAR DISTÂNCIA
+-- ============================================
+
+local function getDistance(part)
+    if not part or not part.Parent then return math.huge end
+    return (part.Position - humanoidRootPart.Position).Magnitude
+end
+
+-- ============================================
+-- FUNÇÃO: ENCONTRAR MINÉRIO MAIS PRÓXIMO
+-- ============================================
+
+local function findNearestOre()
+    local nearestOre = nil
+    local shortestDistance = AUTO_MINE_RANGE
+    
+    local ores = findOresInWorkspace()
+    
+    for _, ore in pairs(ores) do
+        local distance = getDistance(ore)
+        if distance < shortestDistance and distance > 0 then
+            nearestOre = ore
+            shortestDistance = distance
+        end
+    end
+    
+    return nearestOre
+end
+
+-- ============================================
+-- FUNÇÃO: SIMULAR MINERAÇÃO
+-- ============================================
+
+local function simulateMining()
+    if not currentOreTarget or not currentOreTarget.Parent then
+        currentOreTarget = findNearestOre()
+        return
+    end
+    
+    local distance = getDistance(currentOreTarget)
+    
+    -- Se o minério desapareceu ou está muito longe, procurar outro
+    if distance > AUTO_MINE_RANGE or not currentOreTarget.Parent then
+        currentOreTarget = nil
+        return
+    end
+    
+    -- Simular movimento em direção ao minério
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid:MoveTo(currentOreTarget.Position)
+    end
+    
+    -- Simular clique/mineração (adapte conforme a mecânica do jogo)
+    -- A maioria dos jogos de mining detectam proximidade
+end
+
+-- ============================================
+-- FUNÇÃO: ATUALIZAR ESP
+-- ============================================
+
+local function updateESP()
+    if not espEnabled then return end
+    
+    local currentTime = tick()
+    if currentTime - lastESPUpdate < ESP_UPDATE_SPEED then return end
+    lastESPUpdate = currentTime
+    
+    local ores = findOresInWorkspace()
+    local activeOres = {}
+    
+    -- Adicionar highlights aos minérios detectados
+    for _, ore in pairs(ores) do
+        if ore and ore.Parent then
+            createHighlight(ore)
+            activeOres[ore] = true
+        end
+    end
+    
+    -- Remover highlights dos minérios que desapareceram
+    for ore, _ in pairs(oreHighlights) do
+        if not activeOres[ore] or not ore.Parent then
+            removeHighlight(ore)
+        end
+    end
+end
+
+-- ============================================
+-- LOOP PRINCIPAL
+-- ============================================
+
+RunService.RenderStepped:Connect(function()
+    -- Atualizar posição do personagem
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        humanoidRootPart = character.HumanoidRootPart
+    end
+    
+    -- Atualizar ESP
+    updateESP()
+    
+    -- Atualizar Auto Mine
+    if autoMineEnabled then
+        simulateMining()
+    end
+end)
+
+-- ============================================
+-- TRATAMENTO DE EVENTOS
+-- ============================================
+
+-- Quando o personagem morre e respawna
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    currentOreTarget = nil
+end)
+
+-- Limpar highlights quando o script é desativado
+game:GetService("RunService").Heartbeat:Connect(function()
+    if not script.Parent then
+        for _, highlight in pairs(oreHighlights) do
+            if highlight then
+                highlight:Destroy()
             end
         end
     end
 end)
 
--- ==================== MENSAGEM FINAL ====================
-print("✅ Botão único carregado com sucesso!")
-print("   Toque no botão → Verde = ON (Auto Mine + ESP)")
-print("   Toque novamente → Vermelho = OFF")
-print("   Segure e arraste o botão para qualquer lugar da tela")
+-- ============================================
+-- CRIAR UI
+-- ============================================
+
+local screenGui, espButton, autoMineButton = createMobileUI()
+
+print("✅ Script Ultimate Mining Tycoon carregado com sucesso!")
+print("📱 Interface móvel criada")
+print("🎮 Clique nos botões para ativar ESP e Auto Mine")
