@@ -1,6 +1,6 @@
 -- ============================================
 -- ULTIMATE MINING TYCOON - ESP & AUTO MINE
--- Script para Roblox em Executor
+-- Script para Roblox em Executor (CORRIGIDO)
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -32,7 +32,6 @@ local function createMobileUI()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "MiningTycoonUI"
     screenGui.ResetOnSpawn = false
-    screenGui.ZIndex = 100
     
     -- Detectar se é mobile
     local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
@@ -61,6 +60,7 @@ local function createMobileUI()
     espButton.Font = Enum.Font.GothamBold
     espButton.Text = "ESP: OFF"
     espButton.BorderSizePixel = 0
+    espButton.ZIndex = 2
     espButton.Parent = screenGui
     
     -- Efeito de arredondamento
@@ -82,6 +82,7 @@ local function createMobileUI()
     autoMineButton.Font = Enum.Font.GothamBold
     autoMineButton.Text = "AUTO MINE: OFF"
     autoMineButton.BorderSizePixel = 0
+    autoMineButton.ZIndex = 2
     autoMineButton.Parent = screenGui
     
     -- Efeito de arredondamento
