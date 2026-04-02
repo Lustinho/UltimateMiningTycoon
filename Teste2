@@ -13,8 +13,6 @@ local character = player.Character or player.CharacterAdded:Wait()
 
 -- ==================== CARREGAR LIBRARIES ====================
 local Library = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/282c9e98325f6b79299c800df74b2849/raw/d9efe72dc43a11b5237a43e2de71b7038e8bb37b/library.lua"))()
-local EspLibrary, EspLibraryFunctions = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/2bcff189f55663147f8d63cb5b2012d9/raw/c15541927610e44cfc31d640a1ddce50cda9e680/EspLibrary.lua"))()
-
 -- ==================== CONFIGURAÇÕES SIMPLES ====================
 local Settings = {
     AutoMine = false,
