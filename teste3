@@ -1,134 +1,136 @@
 -- =============================================
--- ULTIMATE MINING TYCOON - Interface Simples Mobile
--- Baseado na sua Library (Float.Balls Style)
+-- UMT - Interface Simples Mobile (Sem Library Externa)
+-- Botão circular arrastável + Menu Farming
 -- =============================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 
--- ==================== CARREGAR A LIBRARY ====================
-local Library = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/282c9e98325f6b79299c800df74b2849/raw/d9efe72dc43a11b5237a43e2de71b7038e8bb37b/library.lua"))()
+-- ==================== CONFIGURAÇÕES ====================
+local Settings = {
+    AutoMine = false,
+    AutoSell = false,
+    MiningRange = 150,
+    OreHitbox = false,
+    HitboxSize = 8,
+}
 
--- ==================== CONFIGURAÇÕES BÁSICAS ====================
-Library.NotificationPosition = "Top_Right"
+local Tool = nil
 
-local Window = Library:CreateWindow({
-    Title = "UMT Mobile",
-    Center = false,
-    Size = UDim2.new(0, 320, 0, 420)  -- Janela menor e mais adequada para celular
-})
+local function GetTool()
+    for _, v in pairs(character:GetChildren()) do
+        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
+            return v
+        end
+    end
+    return nil
+end
 
-Window:SetPosition(UDim2.new(1, -340, 1, -460))  -- Canto inferior direito
-
--- ==================== BOTÃO FLUTUANTE ARRASTÁVEL (Principal para Celular) ====================
+-- ==================== BOTÃO CIRCULAR ARRASTÁVEL ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 75, 0, 75)
-toggleButton.Position = UDim2.new(1, -95, 1, -95)
-toggleButton.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
-toggleButton.Text = "OFF"
-toggleButton.TextColor3 = Color3.new(1, 1, 1)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.BorderSizePixel = 0
-toggleButton.Parent = screenGui
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 70, 0, 70)
+button.Position = UDim2.new(1, -90, 1, -90)
+button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+button.Text = "OFF"
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextScaled = true
+button.Font = Enum.Font.GothamBold
+button.BorderSizePixel = 0
+button.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
-corner.Parent = toggleButton
+corner.Parent = button
 
 local stroke = Instance.new("UIStroke")
 stroke.Thickness = 3
 stroke.Color = Color3.new(1, 1, 1)
-stroke.Parent = toggleButton
+stroke.Parent = button
 
--- ==================== INTERFACE PRINCIPAL ====================
-local MainTab = Window:AddTab("Main")
+-- ==================== ESTADO DO BOTÃO ====================
+local isOn = false
 
-local FarmGroup = MainTab:AddLeftGroupbox("Farming")
-
--- Auto Mine
-FarmGroup:AddToggle("AutoMine", {Text = "Auto Mine", Default = false})
-    :OnChanged(function(v)
-        print("Auto Mine:", v and "ON" or "OFF")
-        -- Aqui você coloca sua lógica de Auto Mine
-    end)
-
--- Auto Sell
-FarmGroup:AddToggle("AutoSell", {Text = "Auto Sell", Default = false})
-    :OnChanged(function(v)
-        print("Auto Sell:", v and "ON" or "OFF")
-    end)
-
--- Mining Range
-FarmGroup:AddSlider("MiningRange", {Text = "Mining Range", Default = 150, Min = 50, Max = 400, Rounding = 0})
-    :OnChanged(function(v)
-        print("Mining Range:", v)
-    end)
-
--- Ore Hitbox
-FarmGroup:AddToggle("OreHitbox", {Text = "Ore Hitbox", Default = false})
-    :OnChanged(function(v)
-        print("Ore Hitbox:", v and "ON" or "OFF")
-    end)
-
-FarmGroup:AddSlider("HitboxSize", {Text = "Hitbox Size", Default = 8, Min = 5, Max = 30, Rounding = 0})
-    :OnChanged(function(v)
-        print("Hitbox Size:", v)
-    end)
-
--- ==================== BOTÃO PARA ABRIR/FECHAR MENU ====================
-local menuOpen = true
-
-toggleButton.MouseButton1Click:Connect(function()
-    menuOpen = not menuOpen
-    Library:Toggle()  -- Abre ou fecha a janela da Library
-    
-    if menuOpen then
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-        toggleButton.Text = "ON"
+local function toggle()
+    isOn = not isOn
+    if isOn then
+        button.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+        button.Text = "ON"
+        print("✅ Sistema LIGADO")
     else
-        toggleButton.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
-        toggleButton.Text = "OFF"
+        button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+        button.Text = "OFF"
+        print("⛔ Sistema DESLIGADO")
     end
-end)
+end
 
--- ==================== SISTEMA DE ARRASTAR O BOTÃO ====================
+button.MouseButton1Click:Connect(toggle)
+
+-- ==================== ARRASTAR O BOTÃO ====================
 local dragging = false
 local dragStart, startPos
 
-toggleButton.InputBegan:Connect(function(input)
+button.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
-        startPos = toggleButton.Position
+        startPos = button.Position
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
-        toggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
-toggleButton.InputEnded:Connect(function(input)
+button.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
 end)
 
--- ==================== FINALIZAÇÃO ====================
-Library:SetWatermark("UMT Mobile Simple")
+-- ==================== LOOP DO AUTO MINE ====================
+RunService.Heartbeat:Connect(function()
+    if not isOn then return end
+    
+    Tool = GetTool()
+    character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") or not Tool then return end
+    
+    local rootPos = character.HumanoidRootPart.Position
+    
+    for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
+        if ore:IsA("MeshPart") and ore:GetAttribute("MineId") then
+            local dist = (ore:GetPivot().Position - rootPos).Magnitude
+            if dist <= Settings.MiningRange and dist > 8 then
+                -- Mineração
+                local args = {1, ore:GetPivot().Position - Vector3.new(4,4,4)}
+                pcall(function()
+                    ReplicatedStorage.MadCommEvents[Tool:GetAttribute("MadCommId")].Activate:FireServer(unpack(args))
+                end)
+            end
+        end
+    end
+end)
 
-print("✅ Interface simples para celular carregada!")
-print("   • Use o botão circular para abrir/fechar o menu")
-print("   • Segure e arraste o botão para mover")
+-- Hitbox automática
+Workspace.SpawnedBlocks.ChildAdded:Connect(function(ore)
+    if Settings.OreHitbox and ore:IsA("MeshPart") then
+        ore.Size = Vector3.new(Settings.HitboxSize, Settings.HitboxSize, Settings.HitboxSize)
+    end
+end)
 
-Library:Notify({Title = "Sucesso", Text = "Interface Mobile carregada!", Duration = 4})
+print("✅ Interface simples mobile carregada!")
+print("   • Toque no botão circular para ligar/desligar")
+print("   • Segure e arraste para mover o botão")
