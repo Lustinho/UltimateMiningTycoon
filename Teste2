@@ -38,12 +38,6 @@ local function GetTool()
 end
 
 -- ==================== INTERFACE SIMPLES (Mobile Otimizada) ====================
-local Window = Library:CreateWindow({
-    Title = "UMT - Simples Mobile",
-    Center = false,
-    Size = UDim2.new(0, 320, 0, 380),
-})
-
 Window:SetPosition(UDim2.new(1, -340, 1, -420)) -- Canto inferior direito
 
 local MainTab = Window:AddTab("Main")
