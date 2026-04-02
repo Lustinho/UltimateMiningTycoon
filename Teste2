@@ -4,8 +4,72 @@
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- ==================== CARREGAR LIBRARIES ====================
+local Library = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/282c9e98325f6b79299c800df74b2849/raw/d9efe72dc43a11b5237a43e2de71b7038e8bb37b/library.lua"))()
+local EspLibrary, EspLibraryFunctions = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/2bcff189f55663147f8d63cb5b2012d9/raw/c15541927610e44cfc31d640a1ddce50cda9e680/EspLibrary.lua"))()
+
+-- ==================== CONFIGURAÇÕES SIMPLES ====================
+local Settings = {
+    AutoMine = false,
+    AutoSell = false,
+    MiningRange = 120,
+    OreHitbox = false,
+    HitboxSize = 8,
+    ShowNames = false,
+    ShowDistance = false,
+}
+
+local Tool = nil
+
+local function GetTool()
+    for _, v in pairs(character:GetChildren()) do
+        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
+            return v
+        end
+    end
+    return nil
+end
+
+-- ==================== INTERFACE SIMPLES (Mobile Otimizada) ====================
+local Window = Library:CreateWindow({
+    Title = "UMT - Simples Mobile",
+    Center = false,
+    Size = UDim2.new(0, 320, 0, 380),
+})
+
+Window:SetPosition(UDim2.new(1, -340, 1, -420)) -- Canto inferior direito
+
+local MainTab = Window:AddTab("Main")
+local VisualTab = Window:AddTab("Visual")
+
+-- Farming Group
+local FarmGroup = MainTab:AddLeftGroupbox("Farming")
+
+FarmGroup:AddToggle("AutoMine", {Text = "Auto Mine", Default = false})
+    :OnChanged(function(v) Settings.Farming.AutoMine = v end)
+
+FarmGroup:AddToggle("AutoSell", {Text = "Auto Sell", Default = false})
+    :OnChanged(function(v) Settings.Farming.AutoSell = v end)
+
+FarmGroup:AddSlider("MiningRange", {Text = "Mining Range", Default = 150, Min = 50, Max = 400})
+    :OnChanged(function(v) Settings.Farming.AutoMineRange = v end)
+
+FarmGroup:AddToggle("OreHitbox", {Text = "Ore Hitbox", Default = false})
+    :OnChanged(function(v)
+        Settings.Farming.OreHitboxes = v
+        for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
+            if ore:IsA("MeshPart") then
+                ore.Size = v and Vector3.new(Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize) or Vector3.new(4.4,4.4,4.4)
+            end
+        end
+    end)
 
 -- Cria a ScreenGui
 local screenGui = Instance.new("ScreenGui")
