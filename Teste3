@@ -12,6 +12,9 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 
+-- EspLibrary (sistema de ESP completo)
+local EspLibrary, EspLibraryFunctions = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/2bcff189f55663147f8d63cb5b2012d9/raw/c15541927610e44cfc31d640a1ddce50cda9e680/EspLibrary.lua"))()
+
 -- ==================== CONFIGURAÇÕES ====================
 local Settings = {
     AutoMine = false,
@@ -100,16 +103,102 @@ button.InputEnded:Connect(function(input)
     end
 end)
 
-local Window = Library:CreateWindow({
-    Title = "UMT - Farming System",
-    Center = false,
-    Size = UDim2.new(0, 340, 0, 380)
-})
+-- Visual Group (ESP)
+local EspGroup = VisualTab:AddLeftGroupbox("Ore ESP")
 
-Window:SetPosition(UDim2.new(1, -360, 1, -420))
+EspGroup:AddToggle("Names", {Text = "Mostrar Nomes", Default = false})
+    :OnChanged(function(v)
+        EspLibrary.ItemNames.Enabled = v          -- Interage diretamente com a EspLibrary
+    end)
 
-local MainTab = Window:AddTab("Main")
-local FarmGroup = MainTab:AddLeftGroupbox("Farming")
+EspGroup:AddToggle("Distance", {Text = "Mostrar Distância", Default = false})
+    :OnChanged(function(v)
+        EspLibrary.ItemDistances.Enabled = v       -- Interage diretamente com a EspLibrary
+    end)
+
+EspGroup:AddSlider("RenderDistance", {Text = "Render Distance", Default = 200, Min = 50, Max = 500})
+    :OnChanged(function(v)
+        EspLibrary.GeneralSettings.ItemRenderDistance = v   -- Interage com EspLibrary
+    end)
+
+-- Unload
+MainTab:AddRightGroupbox("Controles"):AddButton({Text = "Unload Script", Func = function()
+    Library:Unload()
+    EspLibraryFunctions:Unload()   -- Remove todo o ESP
+end})
+
+Library:SetWatermark("UMT Completo Mobile")
+
+-- ==================== 5. AUTO MINE + ESP (Loop principal) ====================
+RunService.Heartbeat:Connect(function()
+    Tool = GetTool()
+    character = player.Character
+
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local rootPos = character.HumanoidRootPart.Position
+
+    -- AUTO MINE
+    if Settings.Farming.AutoMine and Tool then
+        for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
+            if ore:IsA("MeshPart") and ore:GetAttribute("MineId") then
+                local dist = (ore:GetPivot().Position - rootPos).Magnitude
+
+                if dist <= Settings.Farming.AutoMineRange and dist > 8 then
+                    -- Cria ESP usando a biblioteca (interação principal)
+                    if not ore:FindFirstChild("ItemEsp") then
+                        local data = {Name = ore:GetAttribute("MineId"), Type = "Ore"}
+                        EspLibraryFunctions:CreateItemEsp(ore, data)
+                    end
+
+                    -- Executa mineração
+                    local args = {1, ore:GetPivot().Position - Vector3.new(4,4,4)}
+                    pcall(function()
+                        ReplicatedStorage.MadCommEvents[Tool:GetAttribute("MadCommId")].Activate:FireServer(unpack(args))
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+-- ==================== 6. AUTO SELL + OUTROS LOOPS ====================
+task.spawn(function()
+    while true do task.wait(0.3)
+        PlayersBackpack = character:WaitForChild("OrePackCargo", 5)
+        Tool = GetTool()
+
+        if Settings.Farming.AutoSell and not Selling then
+            if character.OrePackCargo:GetAttribute("NumContents") == PlayersBackpack:GetAttribute("Capacity") then
+                Selling = true
+                OldPlayerPosition = character:GetPivot()
+                character:PivotTo(PlayersUnloader:GetPivot() + Vector3.new(0,3,0))
+                task.wait(0.2)
+                fireproximityprompt(PlayersUnloader.Unloader.CargoVolume.CargoPrompt)
+                task.wait(0.1)
+                character:PivotTo(OldPlayerPosition)
+                Selling = false
+            end
+        end
+    end
+end)
+
+-- ==================== 7. EVENTOS DO JOGO (SpawnedBlocks e Character) ====================
+Workspace.SpawnedBlocks.ChildAdded:Connect(function(ore)
+    if ore:IsA("MeshPart") and ore:GetAttribute("MineId") then
+        -- Cria ESP automaticamente quando novo ore aparece
+        EspLibraryFunctions:CreateItemEsp(ore, {Name = ore:GetAttribute("MineId"), Type = "Ore"})
+        
+        if Settings.Farming.OreHitboxes then
+            ore.Size = Vector3.new(Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize)
+        end
+    end
+end)
+
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    character:WaitForChild("Humanoid").WalkSpeed = Settings.Player.Walkspeed
+end
 
 -- ==================== TOGGLES E SLIDERS ====================
 
@@ -198,6 +287,16 @@ Workspace.SpawnedBlocks.ChildAdded:Connect(function(ore)
         ore.Size = Vector3.new(Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize, Settings.Farming.OreHitboxesSize)
     end
 end)
+
+-- Insta Mine Button (mantido do original)
+MainTab:AddRightGroupbox("Exploits"):AddButton({Text = "Insta Mine", Func = function()
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" and rawget(v, "Hardness") and rawget(v, "Speed") then
+            rawset(v, "Speed", 2.5)
+        end
+    end
+    Library:Notify({Title = "Insta Mine", Text = "Aplicado!", Duration = 3})
+end})
 
 -- ==================== FINALIZAÇÃO ====================
 Library:SetWatermark("UMT - Farming System")
