@@ -37,12 +37,6 @@ local function GetTool()
     return nil
 end
 
--- ==================== INTERFACE SIMPLES (Mobile Otimizada) ====================
-Window:SetPosition(UDim2.new(1, -340, 1, -420)) -- Canto inferior direito
-
-local MainTab = Window:AddTab("Main")
-local VisualTab = Window:AddTab("Visual")
-
 -- Farming Group
 local FarmGroup = MainTab:AddLeftGroupbox("Farming")
 
