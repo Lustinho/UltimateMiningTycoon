@@ -1,0 +1,134 @@
+-- =============================================
+-- ULTIMATE MINING TYCOON - Interface Simples Mobile
+-- Baseado na sua Library (Float.Balls Style)
+-- =============================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+-- ==================== CARREGAR A LIBRARY ====================
+local Library = loadstring(game:HttpGet("https://gist.githubusercontent.com/VertigoCool99/282c9e98325f6b79299c800df74b2849/raw/d9efe72dc43a11b5237a43e2de71b7038e8bb37b/library.lua"))()
+
+-- ==================== CONFIGURAÇÕES BÁSICAS ====================
+Library.NotificationPosition = "Top_Right"
+
+local Window = Library:CreateWindow({
+    Title = "UMT Mobile",
+    Center = false,
+    Size = UDim2.new(0, 320, 0, 420)  -- Janela menor e mais adequada para celular
+})
+
+Window:SetPosition(UDim2.new(1, -340, 1, -460))  -- Canto inferior direito
+
+-- ==================== BOTÃO FLUTUANTE ARRASTÁVEL (Principal para Celular) ====================
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 75, 0, 75)
+toggleButton.Position = UDim2.new(1, -95, 1, -95)
+toggleButton.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+toggleButton.Text = "OFF"
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.BorderSizePixel = 0
+toggleButton.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = toggleButton
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 3
+stroke.Color = Color3.new(1, 1, 1)
+stroke.Parent = toggleButton
+
+-- ==================== INTERFACE PRINCIPAL ====================
+local MainTab = Window:AddTab("Main")
+
+local FarmGroup = MainTab:AddLeftGroupbox("Farming")
+
+-- Auto Mine
+FarmGroup:AddToggle("AutoMine", {Text = "Auto Mine", Default = false})
+    :OnChanged(function(v)
+        print("Auto Mine:", v and "ON" or "OFF")
+        -- Aqui você coloca sua lógica de Auto Mine
+    end)
+
+-- Auto Sell
+FarmGroup:AddToggle("AutoSell", {Text = "Auto Sell", Default = false})
+    :OnChanged(function(v)
+        print("Auto Sell:", v and "ON" or "OFF")
+    end)
+
+-- Mining Range
+FarmGroup:AddSlider("MiningRange", {Text = "Mining Range", Default = 150, Min = 50, Max = 400, Rounding = 0})
+    :OnChanged(function(v)
+        print("Mining Range:", v)
+    end)
+
+-- Ore Hitbox
+FarmGroup:AddToggle("OreHitbox", {Text = "Ore Hitbox", Default = false})
+    :OnChanged(function(v)
+        print("Ore Hitbox:", v and "ON" or "OFF")
+    end)
+
+FarmGroup:AddSlider("HitboxSize", {Text = "Hitbox Size", Default = 8, Min = 5, Max = 30, Rounding = 0})
+    :OnChanged(function(v)
+        print("Hitbox Size:", v)
+    end)
+
+-- ==================== BOTÃO PARA ABRIR/FECHAR MENU ====================
+local menuOpen = true
+
+toggleButton.MouseButton1Click:Connect(function()
+    menuOpen = not menuOpen
+    Library:Toggle()  -- Abre ou fecha a janela da Library
+    
+    if menuOpen then
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+        toggleButton.Text = "ON"
+    else
+        toggleButton.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+        toggleButton.Text = "OFF"
+    end
+end)
+
+-- ==================== SISTEMA DE ARRASTAR O BOTÃO ====================
+local dragging = false
+local dragStart, startPos
+
+toggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = toggleButton.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        toggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+toggleButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ==================== FINALIZAÇÃO ====================
+Library:SetWatermark("UMT Mobile Simple")
+
+print("✅ Interface simples para celular carregada!")
+print("   • Use o botão circular para abrir/fechar o menu")
+print("   • Segure e arraste o botão para mover")
+
+Library:Notify({Title = "Sucesso", Text = "Interface Mobile carregada!", Duration = 4})
