@@ -1,6 +1,6 @@
 -- ============================================
 -- ULTIMATE MINING TYCOON - ESP & AUTO MINE
--- Script com UI Rayfield para Roblox
+-- Script com UI Rayfield para Roblox (CORRIGIDO)
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -29,9 +29,12 @@ local currentOreTarget = nil
 local AUTO_MINE_RANGE = 100
 local ESP_UPDATE_SPEED = 0.5
 local lastESPUpdate = 0
+local TELEPORT_OFFSET = 5 -- Distância para se teleportar do minério
+local MINING_RANGE = 20 -- Range para começar a minerar
+local mininingActive = false
 
 -- ============================================
--- CRIAR JANELA RAYFIELD
+-- CARREGAR RAYFIELD
 -- ============================================
 
 local Window = Rayfield:CreateWindow({
@@ -92,6 +95,7 @@ local AutoMineToggle = MainTab:CreateToggle({
         autoMineEnabled = Value
         if not autoMineEnabled then
             currentOreTarget = nil
+            mininingActive = false
         end
     end,
 })
@@ -103,6 +107,7 @@ local AutoMineToggle = MainTab:CreateToggle({
 MainTab:CreateLabel("Status do Sistema", 0)
 
 local StatusLabel = MainTab:CreateLabel("ESP: OFF | Auto Mine: OFF", 0)
+local OreCountLabel = MainTab:CreateLabel("Minérios Detectados: 0", 0)
 
 -- Atualizar label de status
 spawn(function()
@@ -110,7 +115,9 @@ spawn(function()
         wait(0.5)
         local espStatus = espEnabled and "ON" or "OFF"
         local autoStatus = autoMineEnabled and "ON" or "OFF"
+        local oreCount = #findOresInWorkspace()
         StatusLabel:Set("ESP: " .. espStatus .. " | Auto Mine: " .. autoStatus)
+        OreCountLabel:Set("Minérios Detectados: " .. oreCount)
     end
 end)
 
@@ -149,6 +156,38 @@ local ESPSpeedSlider = SettingsTab:CreateSlider({
 })
 
 -- ============================================
+-- ABA CONFIGURAÇÕES - DISTÂNCIA TELEPORT
+-- ============================================
+
+local TeleportOffsetSlider = SettingsTab:CreateSlider({
+    Name = "Distância de Teleporte",
+    Range = {1, 50},
+    Increment = 1,
+    Suffix = "studs",
+    CurrentValue = TELEPORT_OFFSET,
+    Flag = "TeleportOffsetSlider",
+    Callback = function(Value)
+        TELEPORT_OFFSET = Value
+    end,
+})
+
+-- ============================================
+-- ABA CONFIGURAÇÕES - RANGE MINERAÇÃO
+-- ============================================
+
+local MiningRangeSlider = SettingsTab:CreateSlider({
+    Name = "Range de Mineração (Clique)",
+    Range = {5, 100},
+    Increment = 5,
+    Suffix = "studs",
+    CurrentValue = MINING_RANGE,
+    Flag = "MiningRangeSlider",
+    Callback = function(Value)
+        MINING_RANGE = Value
+    end,
+})
+
+-- ============================================
 -- ABA CONFIGURAÇÕES - BUTTONS
 -- ============================================
 
@@ -177,8 +216,12 @@ SettingsTab:CreateButton({
     Callback = function()
         AUTO_MINE_RANGE = 100
         ESP_UPDATE_SPEED = 0.5
+        TELEPORT_OFFSET = 5
+        MINING_RANGE = 20
         RangeSlider:Set(AUTO_MINE_RANGE)
         ESPSpeedSlider:Set(ESP_UPDATE_SPEED)
+        TeleportOffsetSlider:Set(TELEPORT_OFFSET)
+        MiningRangeSlider:Set(MINING_RANGE)
         Rayfield:Notify({
             Title = "Resetado",
             Content = "Configurações voltadas ao padrão!",
@@ -192,7 +235,7 @@ SettingsTab:CreateButton({
 -- FUNÇÃO: DETECTAR MINÉRIOS
 -- ============================================
 
-local function findOresInWorkspace()
+function findOresInWorkspace()
     local ores = {}
     
     -- Procurar minérios na workspace
@@ -279,27 +322,103 @@ local function findNearestOre()
 end
 
 -- ============================================
--- FUNÇÃO: SIMULAR MINERAÇÃO
+-- FUNÇÃO: TELETRANSPORTAR PARA O MINÉRIO
 -- ============================================
 
-local function simulateMining()
+local function teleportToOre(ore)
+    if not ore or not ore.Parent then return false end
+    
+    local orePosition = ore.Position
+    local direction = (orePosition - humanoidRootPart.Position).Unit
+    
+    -- Calcular posição de teleporte (um pouco antes do minério)
+    local teleportPosition = orePosition - (direction * TELEPORT_OFFSET)
+    teleportPosition = teleportPosition + Vector3.new(0, 3, 0) -- Um pouco acima
+    
+    -- Teletransportar
+    humanoidRootPart.CFrame = CFrame.new(teleportPosition)
+    
+    return true
+end
+
+-- ============================================
+-- FUNÇÃO: SIMULAR CLIQUE NO MINÉRIO (MINERAÇÃO)
+-- ============================================
+
+local function clickOre(ore)
+    if not ore or not ore.Parent then return end
+    
+    -- Procurar ferramentas e ativar clique no minério
+    local tool = character:FindFirstChildOfClass("Tool")
+    
+    if tool then
+        -- Se tem ferramenta, tenta clicar
+        local mouse = player:GetMouse()
+        mouse.Target = ore
+        
+        -- Ativar clique do mouse
+        game:GetService("UserInputService"):SendKeyEvent(true, Enum.KeyCode.E, false)
+        wait(0.1)
+        game:GetService("UserInputService"):SendKeyEvent(false, Enum.KeyCode.E, false)
+    else
+        -- Se não tem ferramenta, tenta equipar picareta próxima
+        for _, obj in pairs(workspace:GetChildren()) do
+            if obj:IsA("Tool") and (obj.Name:lower():find("pickaxe") or obj.Name:lower():find("picareta")) then
+                humanoidRootPart.CFrame = obj.Handle.CFrame + Vector3.new(0, 2, 0)
+                wait(0.2)
+                obj:MoveTo(character.HumanoidRootPart.Position)
+                wait(0.2)
+                break
+            end
+        end
+    end
+end
+
+-- ============================================
+-- FUNÇÃO: AUTO MINE (COMPLETO)
+-- ============================================
+
+local function autoMine()
+    if not autoMineEnabled then return end
+    
+    -- Se não tem alvo, procura um
     if not currentOreTarget or not currentOreTarget.Parent then
         currentOreTarget = findNearestOre()
+        
+        if currentOreTarget then
+            Rayfield:Notify({
+                Title = "Novo Alvo",
+                Content = "Minério detectado! Teleportando...",
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end
         return
     end
     
     local distance = getDistance(currentOreTarget)
     
-    -- Se o minério desapareceu ou está muito longe, procurar outro
+    -- Se o minério desapareceu ou está muito longe
     if distance > AUTO_MINE_RANGE or not currentOreTarget.Parent then
         currentOreTarget = nil
+        mininingActive = false
+        Rayfield:Notify({
+            Title = "Alvo Perdido",
+            Content = "Minério desapareceu! Procurando novo...",
+            Duration = 2,
+            Image = 4483362458,
+        })
         return
     end
     
-    -- Simular movimento em direção ao minério
-    local humanoid = character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid:MoveTo(currentOreTarget.Position)
+    -- Se está longe, teletransporta
+    if distance > MINING_RANGE then
+        teleportToOre(currentOreTarget)
+        wait(0.5)
+    else
+        -- Se está perto, minera
+        clickOre(currentOreTarget)
+        wait(0.2)
     end
 end
 
@@ -348,7 +467,7 @@ RunService.RenderStepped:Connect(function()
     
     -- Atualizar Auto Mine
     if autoMineEnabled then
-        simulateMining()
+        autoMine()
     end
 end)
 
@@ -361,6 +480,7 @@ player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     currentOreTarget = nil
+    mininingActive = false
 end)
 
 -- Notificação de inicialização
@@ -371,4 +491,4 @@ Rayfield:Notify({
     Image = 4483362458,
 })
 
-print("✅ Script Ultimate Mining Tycoon (Rayfield) carregado com sucesso!")
+print("✅ Script Ultimate Mining Tycoon (Rayfield - MELHORADO) carregado com sucesso!")
