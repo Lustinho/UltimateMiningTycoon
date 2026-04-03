@@ -1,6 +1,6 @@
 -- ============================================
 -- ULTIMATE MINING TYCOON - ESP & AUTO MINE
--- Script para Roblox em Executor (CORRIGIDO)
+-- Script com UI Rayfield para Roblox
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -10,6 +10,12 @@ local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- ============================================
+-- CARREGAR RAYFIELD
+-- ============================================
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- ============================================
 -- VARIÁVEIS DE CONFIGURAÇÃO
@@ -25,92 +31,43 @@ local ESP_UPDATE_SPEED = 0.5
 local lastESPUpdate = 0
 
 -- ============================================
--- CRIAR INTERFACE GUI PARA CELULAR
+-- CRIAR JANELA RAYFIELD
 -- ============================================
 
-local function createMobileUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "MiningTycoonUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = player:WaitForChild("PlayerGui")
-    
-    -- ============================================
-    -- FRAME PRINCIPAL (Container)
-    -- ============================================
-    
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Parent = screenGui
-    
-    -- Detectar se é mobile
-    local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-    
-    if isMobile then
-        mainFrame.Size = UDim2.new(0, 120, 0, 110)
-        mainFrame.Position = UDim2.new(0.02, 0, 0.5, -55)
-    else
-        mainFrame.Size = UDim2.new(0, 150, 0, 140)
-        mainFrame.Position = UDim2.new(0.02, 0, 0.5, -70)
-    end
-    
-    -- Arredondar frame principal
-    local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 8)
-    mainCorner.Parent = mainFrame
-    
-    -- ============================================
-    -- BOTÃO ESP
-    -- ============================================
-    
-    local espButton = Instance.new("TextButton")
-    espButton.Name = "ESPButton"
-    espButton.Size = UDim2.new(1, -4, 0, 45)
-    espButton.Position = UDim2.new(0, 2, 0, 2)
-    espButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    espButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    espButton.TextSize = 14
-    espButton.Font = Enum.Font.GothamBold
-    espButton.Text = "ESP: OFF"
-    espButton.BorderSizePixel = 0
-    espButton.Parent = mainFrame
-    
-    -- Efeito de arredondamento
-    local espCorner = Instance.new("UICorner")
-    espCorner.CornerRadius = UDim.new(0, 5)
-    espCorner.Parent = espButton
-    
-    -- ============================================
-    -- BOTÃO AUTO MINE
-    -- ============================================
-    
-    local autoMineButton = Instance.new("TextButton")
-    autoMineButton.Name = "AutoMineButton"
-    autoMineButton.Size = UDim2.new(1, -4, 0, 45)
-    autoMineButton.Position = UDim2.new(0, 2, 0, 52)
-    autoMineButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    autoMineButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    autoMineButton.TextSize = 14
-    autoMineButton.Font = Enum.Font.GothamBold
-    autoMineButton.Text = "AUTO MINE: OFF"
-    autoMineButton.BorderSizePixel = 0
-    autoMineButton.Parent = mainFrame
-    
-    -- Efeito de arredondamento
-    local autoMineCorner = Instance.new("UICorner")
-    autoMineCorner.CornerRadius = UDim.new(0, 5)
-    autoMineCorner.Parent = autoMineButton
-    
-    -- ============================================
-    -- EVENTOS DOS BOTÕES
-    -- ============================================
-    
-    espButton.MouseButton1Click:Connect(function()
-        espEnabled = not espEnabled
-        espButton.Text = espEnabled and "ESP: ON" or "ESP: OFF"
-        espButton.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(50, 50, 50)
-        
+local Window = Rayfield:CreateWindow({
+    Name = "Ultimate Mining Tycoon",
+    LoadingTitle = "Carregando...",
+    LoadingSubtitle = "ESP & Auto Mine",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "MiningTycoonConfig",
+        FileName = "Config"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "",
+        RememberJoins = false
+    },
+    KeySystem = false,
+})
+
+-- ============================================
+-- CRIAR ABAS
+-- ============================================
+
+local MainTab = Window:CreateTab("Principal", 4483362458)
+local SettingsTab = Window:CreateTab("Configurações", 7733992848)
+
+-- ============================================
+-- ABA PRINCIPAL - ESP
+-- ============================================
+
+local ESPToggle = MainTab:CreateToggle({
+    Name = "ESP - Detectar Minérios",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        espEnabled = Value
         if not espEnabled then
             -- Limpar highlights quando desativar
             for _, highlight in pairs(oreHighlights) do
@@ -120,20 +77,116 @@ local function createMobileUI()
             end
             oreHighlights = {}
         end
-    end)
-    
-    autoMineButton.MouseButton1Click:Connect(function()
-        autoMineEnabled = not autoMineEnabled
-        autoMineButton.Text = autoMineEnabled and "AUTO MINE: ON" or "AUTO MINE: OFF"
-        autoMineButton.BackgroundColor3 = autoMineEnabled and Color3.fromRGB(150, 0, 0) or Color3.fromRGB(50, 50, 50)
-        
+    end,
+})
+
+-- ============================================
+-- ABA PRINCIPAL - AUTO MINE
+-- ============================================
+
+local AutoMineToggle = MainTab:CreateToggle({
+    Name = "Auto Mine - Mineração Automática",
+    CurrentValue = false,
+    Flag = "AutoMineToggle",
+    Callback = function(Value)
+        autoMineEnabled = Value
         if not autoMineEnabled then
             currentOreTarget = nil
         end
-    end)
-    
-    return screenGui, espButton, autoMineButton
-end
+    end,
+})
+
+-- ============================================
+-- ABA PRINCIPAL - STATUS
+-- ============================================
+
+MainTab:CreateLabel("Status do Sistema", 0)
+
+local StatusLabel = MainTab:CreateLabel("ESP: OFF | Auto Mine: OFF", 0)
+
+-- Atualizar label de status
+spawn(function()
+    while true do
+        wait(0.5)
+        local espStatus = espEnabled and "ON" or "OFF"
+        local autoStatus = autoMineEnabled and "ON" or "OFF"
+        StatusLabel:Set("ESP: " .. espStatus .. " | Auto Mine: " .. autoStatus)
+    end
+end)
+
+-- ============================================
+-- ABA CONFIGURAÇÕES - RANGE
+-- ============================================
+
+SettingsTab:CreateLabel("Configurações de Range", 0)
+
+local RangeSlider = SettingsTab:CreateSlider({
+    Name = "Range de Mineração",
+    Range = {10, 500},
+    Increment = 10,
+    Suffix = "studs",
+    CurrentValue = AUTO_MINE_RANGE,
+    Flag = "RangeSlider",
+    Callback = function(Value)
+        AUTO_MINE_RANGE = Value
+    end,
+})
+
+-- ============================================
+-- ABA CONFIGURAÇÕES - VELOCIDADE ESP
+-- ============================================
+
+local ESPSpeedSlider = SettingsTab:CreateSlider({
+    Name = "Velocidade de Atualização ESP",
+    Range = {0.1, 2},
+    Increment = 0.1,
+    Suffix = "s",
+    CurrentValue = ESP_UPDATE_SPEED,
+    Flag = "ESPSpeedSlider",
+    Callback = function(Value)
+        ESP_UPDATE_SPEED = Value
+    end,
+})
+
+-- ============================================
+-- ABA CONFIGURAÇÕES - BUTTONS
+-- ============================================
+
+SettingsTab:CreateLabel("Ações Rápidas", 0)
+
+SettingsTab:CreateButton({
+    Name = "Limpar Todos os Highlights",
+    Callback = function()
+        for _, highlight in pairs(oreHighlights) do
+            if highlight and highlight.Parent then
+                highlight:Destroy()
+            end
+        end
+        oreHighlights = {}
+        Rayfield:Notify({
+            Title = "Limpeza Completa",
+            Content = "Todos os highlights foram removidos!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "Resetar Configurações",
+    Callback = function()
+        AUTO_MINE_RANGE = 100
+        ESP_UPDATE_SPEED = 0.5
+        RangeSlider:Set(AUTO_MINE_RANGE)
+        ESPSpeedSlider:Set(ESP_UPDATE_SPEED)
+        Rayfield:Notify({
+            Title = "Resetado",
+            Content = "Configurações voltadas ao padrão!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end,
+})
 
 -- ============================================
 -- FUNÇÃO: DETECTAR MINÉRIOS
@@ -147,9 +200,11 @@ local function findOresInWorkspace()
         if obj:IsA("Model") or obj:IsA("BasePart") then
             local name = obj.Name:lower()
             
-            -- Verificar se é um minério (adapte conforme os nomes do jogo)
+            -- Verificar se é um minério
             if name:find("ore") or name:find("mineral") or name:find("mine") or 
-               name:find("rock") or name:find("pedra") or name:find("minério") then
+               name:find("rock") or name:find("pedra") or name:find("minério") or
+               name:find("copper") or name:find("iron") or name:find("gold") or
+               name:find("diamond") or name:find("coal") then
                 
                 if obj:IsA("BasePart") then
                     table.insert(ores, obj)
@@ -246,9 +301,6 @@ local function simulateMining()
     if humanoid then
         humanoid:MoveTo(currentOreTarget.Position)
     end
-    
-    -- Simular clique/mineração (adapte conforme a mecânica do jogo)
-    -- A maioria dos jogos de mining detectam proximidade
 end
 
 -- ============================================
@@ -311,23 +363,12 @@ player.CharacterAdded:Connect(function(newCharacter)
     currentOreTarget = nil
 end)
 
--- Limpar highlights quando o script é desativado
-game:GetService("RunService").Heartbeat:Connect(function()
-    if not script.Parent then
-        for _, highlight in pairs(oreHighlights) do
-            if highlight then
-                highlight:Destroy()
-            end
-        end
-    end
-end)
+-- Notificação de inicialização
+Rayfield:Notify({
+    Title = "Ultimate Mining Tycoon",
+    Content = "Script iniciado com sucesso! ✅",
+    Duration = 5,
+    Image = 4483362458,
+})
 
--- ============================================
--- CRIAR UI
--- ============================================
-
-local screenGui, espButton, autoMineButton = createMobileUI()
-
-print("✅ Script Ultimate Mining Tycoon carregado com sucesso!")
-print("📱 Interface móvel criada")
-print("🎮 Clique nos botões para ativar ESP e Auto Mine")
+print("✅ Script Ultimate Mining Tycoon (Rayfield) carregado com sucesso!")
