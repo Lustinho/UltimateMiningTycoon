@@ -32,19 +32,33 @@ local function createMobileUI()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "MiningTycoonUI"
     screenGui.ResetOnSpawn = false
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    
+    -- ============================================
+    -- FRAME PRINCIPAL (Container)
+    -- ============================================
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = screenGui
     
     -- Detectar se é mobile
     local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
     
     if isMobile then
-        screenGui.Size = UDim2.new(0, 120, 0, 110)
-        screenGui.Position = UDim2.new(0.02, 0, 0.5, -55)
+        mainFrame.Size = UDim2.new(0, 120, 0, 110)
+        mainFrame.Position = UDim2.new(0.02, 0, 0.5, -55)
     else
-        screenGui.Size = UDim2.new(0, 150, 0, 140)
-        screenGui.Position = UDim2.new(0.02, 0, 0.5, -70)
+        mainFrame.Size = UDim2.new(0, 150, 0, 140)
+        mainFrame.Position = UDim2.new(0.02, 0, 0.5, -70)
     end
     
-    screenGui.Parent = player:WaitForChild("PlayerGui")
+    -- Arredondar frame principal
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 8)
+    mainCorner.Parent = mainFrame
     
     -- ============================================
     -- BOTÃO ESP
@@ -60,8 +74,7 @@ local function createMobileUI()
     espButton.Font = Enum.Font.GothamBold
     espButton.Text = "ESP: OFF"
     espButton.BorderSizePixel = 0
-    espButton.ZIndex = 2
-    espButton.Parent = screenGui
+    espButton.Parent = mainFrame
     
     -- Efeito de arredondamento
     local espCorner = Instance.new("UICorner")
@@ -82,8 +95,7 @@ local function createMobileUI()
     autoMineButton.Font = Enum.Font.GothamBold
     autoMineButton.Text = "AUTO MINE: OFF"
     autoMineButton.BorderSizePixel = 0
-    autoMineButton.ZIndex = 2
-    autoMineButton.Parent = screenGui
+    autoMineButton.Parent = mainFrame
     
     -- Efeito de arredondamento
     local autoMineCorner = Instance.new("UICorner")
