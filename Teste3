@@ -1,6 +1,6 @@
 -- ============================================
 -- ULTIMATE MINING TYCOON - ESP & AUTO MINE
--- Script com UI Rayfield para Roblox (CORRIGIDO)
+-- Script com UI Rayfield para Roblox (COMPLETO)
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -34,7 +34,34 @@ local MINING_RANGE = 20 -- Range para começar a minerar
 local mininingActive = false
 
 -- ============================================
--- CARREGAR RAYFIELD
+-- LISTA DE MINÉRIOS A DETECTAR
+-- ============================================
+
+local MINEABLE_ORES = {
+    "Tin",
+    "Iron",
+    "Lead",
+    "Cobalt",
+    "Aluminium",
+    "Silver",
+    "Uranium",
+    "Vanadium",
+    "Tungsten",
+    "Gold",
+    "Titanium",
+    "Molybdenum",
+    "Plutonium",
+    "Palladium",
+    "Mithril",
+    "Thorium",
+    "Iridium",
+    "Adamantium",
+    "Rhodium",
+    "Unobtainium"
+}
+
+-- ============================================
+-- CRIAR JANELA RAYFIELD
 -- ============================================
 
 local Window = Rayfield:CreateWindow({
@@ -60,6 +87,7 @@ local Window = Rayfield:CreateWindow({
 
 local MainTab = Window:CreateTab("Principal", 4483362458)
 local SettingsTab = Window:CreateTab("Configurações", 7733992848)
+local InfoTab = Window:CreateTab("Informações", 4483362458)
 
 -- ============================================
 -- ABA PRINCIPAL - ESP
@@ -108,6 +136,7 @@ MainTab:CreateLabel("Status do Sistema", 0)
 
 local StatusLabel = MainTab:CreateLabel("ESP: OFF | Auto Mine: OFF", 0)
 local OreCountLabel = MainTab:CreateLabel("Minérios Detectados: 0", 0)
+local OreTypeLabel = MainTab:CreateLabel("Tipos: -", 0)
 
 -- Atualizar label de status
 spawn(function()
@@ -115,9 +144,22 @@ spawn(function()
         wait(0.5)
         local espStatus = espEnabled and "ON" or "OFF"
         local autoStatus = autoMineEnabled and "ON" or "OFF"
-        local oreCount = #findOresInWorkspace()
+        local ores = findOresInWorkspace()
+        local oreCount = #ores
+        
+        local oreTypes = {}
+        for _, ore in pairs(ores) do
+            if ore and ore.Parent then
+                local oreName = ore.Name
+                if not table.find(oreTypes, oreName) then
+                    table.insert(oreTypes, oreName)
+                end
+            end
+        end
+        
         StatusLabel:Set("ESP: " .. espStatus .. " | Auto Mine: " .. autoStatus)
         OreCountLabel:Set("Minérios Detectados: " .. oreCount)
+        OreTypeLabel:Set("Tipos: " .. table.concat(oreTypes, ", "):sub(1, 50))
     end
 end)
 
@@ -232,6 +274,33 @@ SettingsTab:CreateButton({
 })
 
 -- ============================================
+-- ABA INFORMAÇÕES
+-- ============================================
+
+InfoTab:CreateLabel("Minérios Detectáveis", 0)
+
+local oreListText = "✓ Tin\n✓ Iron\n✓ Lead\n✓ Cobalt\n✓ Aluminium\n✓ Silver\n✓ Uranium\n✓ Vanadium\n✓ Tungsten\n✓ Gold\n✓ Titanium\n✓ Molybdenum\n✓ Plutonium\n✓ Palladium\n✓ Mithril\n✓ Thorium\n✓ Iridium\n✓ Adamantium\n✓ Rhodium\n✓ Unobtainium"
+
+InfoTab:CreateLabel(oreListText, 0)
+
+InfoTab:CreateLabel("Dicas de Uso", 0)
+
+InfoTab:CreateLabel("1. Ative o ESP para ver os minérios\n2. Ative o Auto Mine para minerar automaticamente\n3. Ajuste o range conforme necessário\n4. O script se teletransporta automaticamente", 0)
+
+-- ============================================
+-- FUNÇÃO: VERIFICAR SE É MINÉRIO
+-- ============================================
+
+local function isOre(name)
+    for _, oreName in pairs(MINEABLE_ORES) do
+        if name == oreName or name:lower():find(oreName:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
+-- ============================================
 -- FUNÇÃO: DETECTAR MINÉRIOS
 -- ============================================
 
@@ -241,18 +310,20 @@ function findOresInWorkspace()
     -- Procurar minérios na workspace
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("BasePart") then
-            local name = obj.Name:lower()
+            local name = obj.Name
             
-            -- Verificar se é um minério
-            if name:find("ore") or name:find("mineral") or name:find("mine") or 
-               name:find("rock") or name:find("pedra") or name:find("minério") or
-               name:find("copper") or name:find("iron") or name:find("gold") or
-               name:find("diamond") or name:find("coal") then
-                
+            -- Verificar se é um minério da lista
+            if isOre(name) then
                 if obj:IsA("BasePart") then
                     table.insert(ores, obj)
                 elseif obj:IsA("Model") and obj:FindFirstChild("PrimaryPart") then
                     table.insert(ores, obj.PrimaryPart)
+                elseif obj:IsA("Model") then
+                    -- Tentar encontrar uma parte na model
+                    local part = obj:FindFirstChildOfClass("BasePart")
+                    if part then
+                        table.insert(ores, part)
+                    end
                 end
             end
         end
@@ -286,7 +357,9 @@ end
 
 local function removeHighlight(part)
     if oreHighlights[part] then
-        oreHighlights[part]:Destroy()
+        pcall(function()
+            oreHighlights[part]:Destroy()
+        end)
         oreHighlights[part] = nil
     end
 end
@@ -388,7 +461,7 @@ local function autoMine()
         if currentOreTarget then
             Rayfield:Notify({
                 Title = "Novo Alvo",
-                Content = "Minério detectado! Teleportando...",
+                Content = "Minério detectado: " .. currentOreTarget.Parent.Name,
                 Duration = 2,
                 Image = 4483362458,
             })
@@ -402,12 +475,6 @@ local function autoMine()
     if distance > AUTO_MINE_RANGE or not currentOreTarget.Parent then
         currentOreTarget = nil
         mininingActive = false
-        Rayfield:Notify({
-            Title = "Alvo Perdido",
-            Content = "Minério desapareceu! Procurando novo...",
-            Duration = 2,
-            Image = 4483362458,
-        })
         return
     end
     
@@ -491,4 +558,5 @@ Rayfield:Notify({
     Image = 4483362458,
 })
 
-print("✅ Script Ultimate Mining Tycoon (Rayfield - MELHORADO) carregado com sucesso!")
+print("✅ Script Ultimate Mining Tycoon (Rayfield - COMPLETO) carregado com sucesso!")
+print("📊 Minérios detectáveis:", table.concat(MINEABLE_ORES, ", "))
