@@ -1,174 +1,187 @@
--- ============================================
--- MINING TYCOON - ESP NETWORK
--- ============================================
+-- =============================================
+-- MINING TYCOON - ESP + AUTO MINE (Corrigido)
+-- Botão circular arrastável ON/OFF
+-- =============================================
 
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 
--- ============================================
--- CARREGAR RAYFIELD
--- ============================================
-
+-- ==================== RAYFIELD UI ====================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
--- ============================================
--- VARIÁVEIS
--- ============================================
-
-local espEnabled = false
-local espBoxes = {}
-local detectedOres = {}
-
--- ============================================
--- CRIAR JANELA E BOTÃO
--- ============================================
 
 local Window = Rayfield:CreateWindow({
     Name = "Mining Tycoon ESP",
     LoadingTitle = "Carregando...",
-    LoadingSubtitle = "ESP",
+    LoadingSubtitle = "ESP + Auto Mine",
 })
 
 local MainTab = Window:CreateTab("ESP", 4483362458)
 
--- ============================================
--- BOTÃO ESP
--- ============================================
+-- ==================== VARIÁVEIS ====================
+local espEnabled = false
+local highlights = {}
 
-MainTab:CreateToggle({
-    Name = "ESP",
-    CurrentValue = false,
-    Flag = "ESPToggle",
-    Callback = function(Value)
-        espEnabled = Value
-        
-        if not espEnabled then
-            for _, box in pairs(espBoxes) do
-                if box and box.Parent then
-                    box:Destroy()
-                end
-            end
-            espBoxes = {}
-            detectedOres = {}
+local Settings = {
+    MiningRange = 150,
+}
+
+local Tool = nil
+
+local function GetTool()
+    for _, v in pairs(character:GetChildren()) do
+        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
+            return v
         end
-    end,
-})
-
--- ============================================
--- FUNÇÃO: CRIAR BOX
--- ============================================
-
-local function createBox(part, name)
-    if not part or not part.Parent then return end
-    
-    local box = Instance.new("Part")
-    box.Name = "ESP_Box_" .. name
-    box.Shape = Enum.PartType.Block
-    box.Material = Enum.Material.Neon
-    box.Color = Color3.fromRGB(0, 255, 0)
-    box.CanCollide = false
-    box.CFrame = part.CFrame
-    box.Size = part.Size + Vector3.new(0.5, 0.5, 0.5)
-    box.TopSurface = Enum.SurfaceType.Smooth
-    box.BottomSurface = Enum.SurfaceType.Smooth
-    box.Transparency = 0.7
-    box.Parent = workspace
-    
-    espBoxes[part] = box
-end
-
--- ============================================
--- FUNÇÃO: ATUALIZAR BOX
--- ============================================
-
-local function updateBox(part)
-    if espBoxes[part] and espBoxes[part].Parent then
-        espBoxes[part].CFrame = part.CFrame
-        espBoxes[part].Size = part.Size + Vector3.new(0.5, 0.5, 0.5)
     end
+    return nil
 end
 
--- ============================================
--- INTERCEPTAR REGISTERINSTANCECHANGES
--- ============================================
+-- ==================== BOTÃO CIRCULAR ARRASTÁVEL ====================
+local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local function hookRegisterInstanceChanges()
-    local MadCommEvents = game:GetService("ReplicatedStorage"):WaitForChild("MadCommEvents")
-    local event6 = MadCommEvents:WaitForChild("6")
-    local RegisterInstanceChanges = event6:WaitForChild("RegisterInstanceChanges")
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 75, 0, 75)
+button.Position = UDim2.new(1, -95, 1, -100)
+button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+button.Text = "OFF"
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextScaled = true
+button.Font = Enum.Font.GothamBold
+button.BorderSizePixel = 0
+button.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = button
+
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 4
+stroke.Color = Color3.new(1, 1, 1)
+stroke.Parent = button
+
+-- ==================== TOGGLE ON/OFF ====================
+local function toggleESP()
+    espEnabled = not espEnabled
     
-    local originalFireServer = RegisterInstanceChanges.FireServer
-    
-    RegisterInstanceChanges.FireServer = function(self, ...)
-        local args = {...}
-        
-        if espEnabled and args[1] then
-            local instances = args[1]
-            
-            if type(instances) == "table" then
-                for id, instanceData in pairs(instances) do
-                    if instanceData.Properties and instanceData.Properties.Name then
-                        local oreName = instanceData.Properties.Name
-                        
-                        if oreName:find("Ore") then
-                            local path = instanceData.Path
-                            
-                            if path then
-                                -- Tentar encontrar o objeto pelo path
-                                local obj = workspace
-                                for part in path:gmatch("[^.]+") do
-                                    if part ~= "Workspace" then
-                                        obj = obj:FindFirstChild(part)
-                                        if not obj then break end
-                                    end
-                                end
-                                
-                                if obj and obj:IsA("BasePart") then
-                                    if not detectedOres[obj] then
-                                        createBox(obj, oreName)
-                                        detectedOres[obj] = true
-                                        print("✅ Minério detectado: " .. oreName .. " em " .. tostring(obj.Position))
-                                    else
-                                        updateBox(obj)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        
-        return originalFireServer(self, ...)
-    end
-end
-
--- ============================================
--- ATUALIZAR BOXES
--- ============================================
-
-RunService.RenderStepped:Connect(function()
     if espEnabled then
-        for ore, _ in pairs(detectedOres) do
-            if ore and ore.Parent then
-                updateBox(ore)
-            else
-                if espBoxes[ore] and espBoxes[ore].Parent then
-                    espBoxes[ore]:Destroy()
-                end
-                espBoxes[ore] = nil
-                detectedOres[ore] = nil
+        button.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+        button.Text = "ON"
+        Rayfield:Notify({Title = "ESP", Content = "Auto Mine + ESP ativados!", Duration = 3})
+    else
+        button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+        button.Text = "OFF"
+        
+        -- Limpa ESP
+        for _, hl in pairs(highlights) do
+            if hl then hl:Destroy() end
+        end
+        highlights = {}
+        Rayfield:Notify({Title = "ESP", Content = "Desativado", Duration = 3})
+    end
+end
+
+button.MouseButton1Click:Connect(toggleESP)
+
+-- Arrastar botão
+local dragging = false
+local dragStart, startPos
+
+button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = button.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+button.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ==================== ESP (Highlight) ====================
+local function createHighlight(ore)
+    if highlights[ore] then return end
+    
+    local hl = Instance.new("Highlight")
+    hl.Adornee = ore
+    hl.FillColor = Color3.fromRGB(0, 255, 100)
+    hl.FillTransparency = 0.75
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.OutlineTransparency = 0.3
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = ore
+    
+    highlights[ore] = hl
+end
+
+-- ==================== LOOP PRINCIPAL ====================
+RunService.Heartbeat:Connect(function()
+    if not espEnabled then return end
+    
+    Tool = GetTool()
+    character = player.Character
+    
+    if not character or not character:FindFirstChild("HumanoidRootPart") or not Tool then return end
+    
+    local rootPos = character.HumanoidRootPart.Position
+    
+    for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
+        if ore:IsA("MeshPart") and ore:GetAttribute("MineId") then
+            local dist = (ore:GetPivot().Position - rootPos).Magnitude
+            
+            if dist <= Settings.MiningRange and dist > 8 then
+                createHighlight(ore)
+                
+                -- Auto Mine
+                local args = {1, ore:GetPivot().Position - Vector3.new(4,4,4)}
+                pcall(function()
+                    ReplicatedStorage.MadCommEvents[Tool:GetAttribute("MadCommId")].Activate:FireServer(unpack(args))
+                end)
             end
         end
     end
 end)
 
--- ============================================
--- ATIVAR HOOK
--- ============================================
+-- ==================== RAYFIELD TOGGLE (opcional) ====================
+MainTab:CreateToggle({
+    Name = "ESP + Auto Mine",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        espEnabled = Value
+        if not espEnabled then
+            for _, hl in pairs(highlights) do hl:Destroy() end
+            highlights = {}
+        end
+    end,
+})
 
-hookRegisterInstanceChanges()
+MainTab:CreateSlider({
+    Name = "Mining Range",
+    Range = {50, 300},
+    Increment = 10,
+    CurrentValue = 150,
+    Callback = function(Value)
+        Settings.MiningRange = Value
+    end,
+})
 
-print("✅ Mining Tycoon ESP Network carregado!")
+print("✅ Botão + ESP + Auto Mine carregado com sucesso!")
+print("   Toque no botão circular para ligar/desligar")
