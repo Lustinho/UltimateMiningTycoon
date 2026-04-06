@@ -1,48 +1,18 @@
 -- =============================================
--- MINING TYCOON - ESP + AUTO MINE (Corrigido)
--- Botão circular arrastável ON/OFF
+-- MINING TYCOON - BOTÃO ÚNICO PARA TIN ORE ESP
 -- =============================================
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
 
--- ==================== RAYFIELD UI ====================
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
-local Window = Rayfield:CreateWindow({
-    Name = "Mining Tycoon ESP",
-    LoadingTitle = "Carregando...",
-    LoadingSubtitle = "ESP + Auto Mine",
-})
-
-local MainTab = Window:CreateTab("ESP", 4483362458)
-
--- ==================== VARIÁVEIS ====================
 local espEnabled = false
 local highlights = {}
 
-local Settings = {
-    MiningRange = 150,
-}
-
-local Tool = nil
-
-local function GetTool()
-    for _, v in pairs(character:GetChildren()) do
-        if v:FindFirstChild("EquipRemote") or string.find(v.Name:lower(), "pickaxe") then
-            return v
-        end
-    end
-    return nil
-end
-
--- ==================== BOTÃO CIRCULAR ARRASTÁVEL ====================
+-- ==================== BOTÃO CIRCULAR ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
@@ -67,30 +37,30 @@ stroke.Thickness = 4
 stroke.Color = Color3.new(1, 1, 1)
 stroke.Parent = button
 
--- ==================== TOGGLE ON/OFF ====================
+-- ==================== TOGGLE ESP ====================
 local function toggleESP()
     espEnabled = not espEnabled
     
     if espEnabled then
         button.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
         button.Text = "ON"
-        Rayfield:Notify({Title = "ESP", Content = "Auto Mine + ESP ativados!", Duration = 3})
+        print("✅ ESP do Tin Ore LIGADO")
     else
         button.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
         button.Text = "OFF"
+        print("⛔ ESP do Tin Ore DESLIGADO")
         
-        -- Limpa ESP
+        -- Limpa todos os highlights
         for _, hl in pairs(highlights) do
-            if hl then hl:Destroy() end
+            if hl and hl.Parent then hl:Destroy() end
         end
         highlights = {}
-        Rayfield:Notify({Title = "ESP", Content = "Desativado", Duration = 3})
     end
 end
 
 button.MouseButton1Click:Connect(toggleESP)
 
--- Arrastar botão
+-- Arrastar o botão
 local dragging = false
 local dragStart, startPos
 
@@ -115,73 +85,40 @@ button.InputEnded:Connect(function(input)
     end
 end)
 
--- ==================== ESP (Highlight) ====================
-local function createHighlight(ore)
-    if highlights[ore] then return end
+-- ==================== FUNÇÃO DO ESP ====================
+local function createESP(part)
+    if highlights[part] then return end
     
-    local hl = Instance.new("Highlight")
-    hl.Adornee = ore
-    hl.FillColor = Color3.fromRGB(0, 255, 100)
-    hl.FillTransparency = 0.75
-    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-    hl.OutlineTransparency = 0.3
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = ore
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = part
+    highlight.FillColor = Color3.fromRGB(0, 255, 100)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0.2
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = part
     
-    highlights[ore] = hl
+    highlights[part] = highlight
 end
 
--- ==================== LOOP PRINCIPAL ====================
+-- ==================== LOOP DE DETECÇÃO ====================
 RunService.Heartbeat:Connect(function()
     if not espEnabled then return end
     
-    Tool = GetTool()
-    character = player.Character
-    
-    if not character or not character:FindFirstChild("HumanoidRootPart") or not Tool then return end
-    
-    local rootPos = character.HumanoidRootPart.Position
-    
-    for _, ore in pairs(Workspace.SpawnedBlocks:GetChildren()) do
-        if ore:IsA("MeshPart") and ore:GetAttribute("MineId") then
-            local dist = (ore:GetPivot().Position - rootPos).Magnitude
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("MeshPart") and 
+           obj.Name == "Tin Ore" and
+           obj.Color == Color3.fromRGB(163, 162, 165) and
+           obj.MeshId == "rbxassetid://76820682044529" and
+           obj.Size == Vector3.new(1, 0.4, 2) and
+           obj.TextureID == "rbxassetid://18946297755" then
             
-            if dist <= Settings.MiningRange and dist > 8 then
-                createHighlight(ore)
-                
-                -- Auto Mine
-                local args = {1, ore:GetPivot().Position - Vector3.new(4,4,4)}
-                pcall(function()
-                    ReplicatedStorage.MadCommEvents[Tool:GetAttribute("MadCommId")].Activate:FireServer(unpack(args))
-                end)
-            end
+            createESP(obj)
         end
     end
 end)
 
--- ==================== RAYFIELD TOGGLE (opcional) ====================
-MainTab:CreateToggle({
-    Name = "ESP + Auto Mine",
-    CurrentValue = false,
-    Flag = "ESPToggle",
-    Callback = function(Value)
-        espEnabled = Value
-        if not espEnabled then
-            for _, hl in pairs(highlights) do hl:Destroy() end
-            highlights = {}
-        end
-    end,
-})
-
-MainTab:CreateSlider({
-    Name = "Mining Range",
-    Range = {50, 300},
-    Increment = 10,
-    CurrentValue = 150,
-    Callback = function(Value)
-        Settings.MiningRange = Value
-    end,
-})
-
-print("✅ Botão + ESP + Auto Mine carregado com sucesso!")
-print("   Toque no botão circular para ligar/desligar")
+print("✅ Botão de ESP do Tin Ore carregado!")
+print("   Toque no botão → Verde = ON")
+print("   Toque novamente → Vermelho = OFF")
+print("   Segure e arraste para mover")
