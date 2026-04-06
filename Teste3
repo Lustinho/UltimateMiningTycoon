@@ -61,32 +61,6 @@ MainTab:CreateToggle({
 local OreListLabel = MainTab:CreateLabel("Minérios: Procurando...", 0)
 
 -- ============================================
--- FUNÇÃO: CRIAR BOX
--- ============================================
-
-local function createBox(part, name)
-    if not part or not part.Parent then return end
-    
-    -- Criar um quadrado (usando 4 partes)
-    local box = Instance.new("Part")
-    box.Name = "ESP_Box_" .. name
-    box.Shape = Enum.PartType.Block
-    box.Material = Enum.Material.Neon
-    box.Color = Color3.fromRGB(0, 255, 0)
-    box.CanCollide = false
-    box.CFrame = part.CFrame
-    box.Size = part.Size + Vector3.new(0.5, 0.5, 0.5)
-    box.TopSurface = Enum.SurfaceType.Smooth
-    box.BottomSurface = Enum.SurfaceType.Smooth
-    box.Transparency = 0.7
-    box.Parent = workspace
-    
-    espBoxes[part] = box
-    
-    print("✅ Box criado para: " .. name .. " em " .. tostring(part.Position))
-end
-
--- ============================================
 -- FUNÇÃO: PROCURAR MINÉRIOS
 -- ============================================
 
