@@ -1,5 +1,5 @@
 -- ============================================
--- MINING TYCOON - ESP SIMPLES
+-- MINING TYCOON - ESP COM BOX
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -19,22 +19,8 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 -- ============================================
 
 local espEnabled = false
-local oreHighlights = {}
-local ESP_UPDATE_SPEED = 0.5
-local lastESPUpdate = 0
-local TRANSPARENCY_VALUE = 0.3
-
--- ============================================
--- LISTA DE MINÉRIOS
--- ============================================
-
-local MINEABLE_ORES = {
-    "Tin Ore", "Iron Ore", "Lead Ore", "Cobalt Ore", "Aluminium Ore",
-    "Silver Ore", "Uranium Ore", "Vanadium Ore", "Tungsten Ore", "Gold Ore",
-    "Titanium Ore", "Molybdenum Ore", "Plutonium Ore", "Palladium Ore",
-    "Mithril Ore", "Thorium Ore", "Iridium Ore", "Adamantium Ore",
-    "Rhodium Ore", "Unobtainium Ore"
-}
+local espBoxes = {}
+local ESP_UPDATE_SPEED = 0.1
 
 -- ============================================
 -- CRIAR JANELA E BOTÃO
@@ -60,71 +46,108 @@ MainTab:CreateToggle({
         espEnabled = Value
         
         if not espEnabled then
-            for _, highlight in pairs(oreHighlights) do
-                if highlight and highlight.Parent then
-                    highlight:Destroy()
+            -- Limpar todos os boxes
+            for _, box in pairs(espBoxes) do
+                if box then
+                    for _, line in pairs(box) do
+                        if line and line.Parent then
+                            line:Destroy()
+                        end
+                    end
                 end
             end
-            oreHighlights = {}
+            espBoxes = {}
         end
     end,
 })
 
 -- ============================================
--- FUNÇÃO: DETECTAR MINÉRIOS
+-- FUNÇÃO: CRIAR BOX AO REDOR DO MINÉRIO
 -- ============================================
 
-local function isOre(name)
-    for _, oreName in pairs(MINEABLE_ORES) do
-        if name == oreName then
-            return true
-        end
+local function createBoxAroundOre(orePart)
+    if not orePart or not orePart.Parent then return end
+    
+    local size = orePart.Size
+    local position = orePart.Position
+    
+    -- Criar 12 linhas para formar um cubo
+    local lines = {}
+    
+    -- Cores para o box
+    local boxColor = Color3.fromRGB(0, 255, 0) -- Verde
+    
+    -- Função para criar uma linha
+    local function createLine(start, finish)
+        local line = Instance.new("Part")
+        line.Shape = Enum.PartType.Cylinder
+        line.Material = Enum.Material.Neon
+        line.Color = boxColor
+        line.CanCollide = false
+        line.CFrame = CFrame.new((start + finish) / 2, finish)
+        line.Size = Vector3.new(0.2, (start - finish).Magnitude, 0.2)
+        line.TopSurface = Enum.SurfaceType.Smooth
+        line.BottomSurface = Enum.SurfaceType.Smooth
+        line.Parent = workspace
+        return line
     end
-    return false
+    
+    -- Calcular os 8 cantos do cubo
+    local halfSize = size / 2
+    local corners = {
+        position + Vector3.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+        position + Vector3.new(halfSize.X, -halfSize.Y, -halfSize.Z),
+        position + Vector3.new(halfSize.X, halfSize.Y, -halfSize.Z),
+        position + Vector3.new(-halfSize.X, halfSize.Y, -halfSize.Z),
+        position + Vector3.new(-halfSize.X, -halfSize.Y, halfSize.Z),
+        position + Vector3.new(halfSize.X, -halfSize.Y, halfSize.Z),
+        position + Vector3.new(halfSize.X, halfSize.Y, halfSize.Z),
+        position + Vector3.new(-halfSize.X, halfSize.Y, halfSize.Z),
+    }
+    
+    -- Criar as 12 arestas do cubo
+    -- Face frontal
+    table.insert(lines, createLine(corners[1], corners[2]))
+    table.insert(lines, createLine(corners[2], corners[3]))
+    table.insert(lines, createLine(corners[3], corners[4]))
+    table.insert(lines, createLine(corners[4], corners[1]))
+    
+    -- Face traseira
+    table.insert(lines, createLine(corners[5], corners[6]))
+    table.insert(lines, createLine(corners[6], corners[7]))
+    table.insert(lines, createLine(corners[7], corners[8]))
+    table.insert(lines, createLine(corners[8], corners[5]))
+    
+    -- Conectar frente com trás
+    table.insert(lines, createLine(corners[1], corners[5]))
+    table.insert(lines, createLine(corners[2], corners[6]))
+    table.insert(lines, createLine(corners[3], corners[7]))
+    table.insert(lines, createLine(corners[4], corners[8]))
+    
+    espBoxes[orePart] = lines
 end
 
-local function findOresInWorkspace()
+-- ============================================
+-- FUNÇÃO: DETECTAR MINÉRIOS NO CARGO
+-- ============================================
+
+local function findOresInCargo()
     local ores = {}
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and isOre(obj.Name) then
-            local part = obj:FindFirstChildOfClass("BasePart")
-            if part then
-                table.insert(ores, part)
+    
+    -- Procurar em OrePackCargo
+    local playerFolder = workspace:FindFirstChild(player.Name)
+    if playerFolder then
+        local cargoPart = playerFolder:FindFirstChild("OrePackCargo")
+        if cargoPart then
+            for _, part in pairs(cargoPart:GetChildren()) do
+                if part:IsA("MeshPart") and part.Name == "Tin Ore" then
+                    table.insert(ores, part)
+                end
             end
         end
     end
+    
     return ores
-end
-
--- ============================================
--- FUNÇÃO: CRIAR HIGHLIGHT
--- ============================================
-
-local function createHighlight(part)
-    if not part or not part.Parent then return end
-    if oreHighlights[part] then return end
-    
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = part.Color
-    highlight.OutlineColor = part.Color
-    highlight.FillTransparency = TRANSPARENCY_VALUE
-    highlight.OutlineTransparency = 0.2
-    highlight.Parent = part
-    
-    oreHighlights[part] = highlight
-end
-
--- ============================================
--- FUNÇÃO: REMOVER HIGHLIGHT
--- ============================================
-
-local function removeHighlight(part)
-    if oreHighlights[part] then
-        pcall(function()
-            oreHighlights[part]:Destroy()
-        end)
-        oreHighlights[part] = nil
-    end
 end
 
 -- ============================================
@@ -134,23 +157,56 @@ end
 local function updateESP()
     if not espEnabled then return end
     
-    local currentTime = tick()
-    if currentTime - lastESPUpdate < ESP_UPDATE_SPEED then return end
-    lastESPUpdate = currentTime
-    
-    local ores = findOresInWorkspace()
+    local ores = findOresInCargo()
     local activeOres = {}
     
+    -- Criar boxes para novos minérios
     for _, ore in pairs(ores) do
         if ore and ore.Parent then
-            createHighlight(ore)
+            if not espBoxes[ore] then
+                createBoxAroundOre(ore)
+            end
             activeOres[ore] = true
         end
     end
     
-    for ore, _ in pairs(oreHighlights) do
+    -- Remover boxes de minérios que desapareceram
+    for ore, lines in pairs(espBoxes) do
         if not activeOres[ore] or not ore.Parent then
-            removeHighlight(ore)
+            for _, line in pairs(lines) do
+                if line and line.Parent then
+                    line:Destroy()
+                end
+            end
+            espBoxes[ore] = nil
+        else
+            -- Atualizar posição das linhas
+            local size = ore.Size
+            local position = ore.Position
+            
+            local halfSize = size / 2
+            local corners = {
+                position + Vector3.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+                position + Vector3.new(halfSize.X, -halfSize.Y, -halfSize.Z),
+                position + Vector3.new(halfSize.X, halfSize.Y, -halfSize.Z),
+                position + Vector3.new(-halfSize.X, halfSize.Y, -halfSize.Z),
+                position + Vector3.new(-halfSize.X, -halfSize.Y, halfSize.Z),
+                position + Vector3.new(halfSize.X, -halfSize.Y, halfSize.Z),
+                position + Vector3.new(halfSize.X, halfSize.Y, halfSize.Z),
+                position + Vector3.new(-halfSize.X, halfSize.Y, halfSize.Z),
+            }
+            
+            -- Atualizar posições das linhas (simplificado)
+            if #lines > 0 then
+                for i, line in pairs(lines) do
+                    if line and line.Parent then
+                        local c1 = corners[i % 8 + 1]
+                        local c2 = corners[(i + 1) % 8 + 1]
+                        line.CFrame = CFrame.new((c1 + c2) / 2, c2)
+                        line.Size = Vector3.new(0.2, (c1 - c2).Magnitude, 0.2)
+                    end
+                end
+            end
         end
     end
 end
@@ -170,3 +226,5 @@ end)
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
 end)
+
+print("✅ Mining Tycoon ESP Box carregado!")
