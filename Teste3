@@ -1,5 +1,5 @@
 -- ============================================
--- MINING TYCOON - ESP DEBUG
+-- MINING TYCOON - ESP NETWORK
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -19,6 +19,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local espEnabled = false
 local espBoxes = {}
+local detectedOres = {}
 
 -- ============================================
 -- CRIAR JANELA E BOTÃO
@@ -50,88 +51,124 @@ MainTab:CreateToggle({
                 end
             end
             espBoxes = {}
+            detectedOres = {}
         end
     end,
 })
 
 -- ============================================
--- LABEL PARA MOSTRAR MINÉRIOS ENCONTRADOS
+-- FUNÇÃO: CRIAR BOX
 -- ============================================
 
-local OreListLabel = MainTab:CreateLabel("Minérios: Procurando...", 0)
-
--- ============================================
--- FUNÇÃO: PROCURAR MINÉRIOS
--- ============================================
-
-local function findAllOres()
-    local ores = {}
+local function createBox(part, name)
+    if not part or not part.Parent then return end
     
-    print("\n🔍 Procurando minérios...")
+    local box = Instance.new("Part")
+    box.Name = "ESP_Box_" .. name
+    box.Shape = Enum.PartType.Block
+    box.Material = Enum.Material.Neon
+    box.Color = Color3.fromRGB(0, 255, 0)
+    box.CanCollide = false
+    box.CFrame = part.CFrame
+    box.Size = part.Size + Vector3.new(0.5, 0.5, 0.5)
+    box.TopSurface = Enum.SurfaceType.Smooth
+    box.BottomSurface = Enum.SurfaceType.Smooth
+    box.Transparency = 0.7
+    box.Parent = workspace
     
-    -- Procurar todos os descendentes
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("MeshPart") or obj:IsA("Part") then
-            local name = obj.Name
+    espBoxes[part] = box
+end
+
+-- ============================================
+-- FUNÇÃO: ATUALIZAR BOX
+-- ============================================
+
+local function updateBox(part)
+    if espBoxes[part] and espBoxes[part].Parent then
+        espBoxes[part].CFrame = part.CFrame
+        espBoxes[part].Size = part.Size + Vector3.new(0.5, 0.5, 0.5)
+    end
+end
+
+-- ============================================
+-- INTERCEPTAR REGISTERINSTANCECHANGES
+-- ============================================
+
+local function hookRegisterInstanceChanges()
+    local MadCommEvents = game:GetService("ReplicatedStorage"):WaitForChild("MadCommEvents")
+    local event6 = MadCommEvents:WaitForChild("6")
+    local RegisterInstanceChanges = event6:WaitForChild("RegisterInstanceChanges")
+    
+    local originalFireServer = RegisterInstanceChanges.FireServer
+    
+    RegisterInstanceChanges.FireServer = function(self, ...)
+        local args = {...}
+        
+        if espEnabled and args[1] then
+            local instances = args[1]
             
-            -- Verificar se o nome contém "Ore"
-            if name:find("Ore") then
-                table.insert(ores, obj)
-                print("📦 Encontrado: " .. name .. " em " .. tostring(obj.Position))
+            if type(instances) == "table" then
+                for id, instanceData in pairs(instances) do
+                    if instanceData.Properties and instanceData.Properties.Name then
+                        local oreName = instanceData.Properties.Name
+                        
+                        if oreName:find("Ore") then
+                            local path = instanceData.Path
+                            
+                            if path then
+                                -- Tentar encontrar o objeto pelo path
+                                local obj = workspace
+                                for part in path:gmatch("[^.]+") do
+                                    if part ~= "Workspace" then
+                                        obj = obj:FindFirstChild(part)
+                                        if not obj then break end
+                                    end
+                                end
+                                
+                                if obj and obj:IsA("BasePart") then
+                                    if not detectedOres[obj] then
+                                        createBox(obj, oreName)
+                                        detectedOres[obj] = true
+                                        print("✅ Minério detectado: " .. oreName .. " em " .. tostring(obj.Position))
+                                    else
+                                        updateBox(obj)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
             end
         end
-    end
-    
-    print("📊 Total encontrado: " .. #ores .. "\n")
-    
-    return ores
-end
-
--- ============================================
--- FUNÇÃO: ATUALIZAR ESP
--- ============================================
-
-local function updateESP()
-    if not espEnabled then return end
-    
-    local ores = findAllOres()
-    local oreList = ""
-    
-    for _, ore in pairs(ores) do
-        if ore and ore.Parent then
-            if not espBoxes[ore] then
-                createBox(ore, ore.Name)
-            end
-            oreList = oreList .. ore.Name .. " | "
-        end
-    end
-    
-    if oreList == "" then
-        OreListLabel:Set("Nenhum minério encontrado")
-    else
-        OreListLabel:Set("Encontrados: " .. oreList:sub(1, 80))
-    end
-    
-    -- Remover boxes de minérios deletados
-    for ore, box in pairs(espBoxes) do
-        if not ore.Parent or ore.Parent == nil then
-            if box and box.Parent then
-                box:Destroy()
-            end
-            espBoxes[ore] = nil
-        end
+        
+        return originalFireServer(self, ...)
     end
 end
 
 -- ============================================
--- LOOP PRINCIPAL
+-- ATUALIZAR BOXES
 -- ============================================
 
 RunService.RenderStepped:Connect(function()
     if espEnabled then
-        updateESP()
+        for ore, _ in pairs(detectedOres) do
+            if ore and ore.Parent then
+                updateBox(ore)
+            else
+                if espBoxes[ore] and espBoxes[ore].Parent then
+                    espBoxes[ore]:Destroy()
+                end
+                espBoxes[ore] = nil
+                detectedOres[ore] = nil
+            end
+        end
     end
 end)
 
-print("✅ ESP Debug carregado!")
-print("🔍 Ative o ESP para começar a procurar minérios")
+-- ============================================
+-- ATIVAR HOOK
+-- ============================================
+
+hookRegisterInstanceChanges()
+
+print("✅ Mining Tycoon ESP Network carregado!")
